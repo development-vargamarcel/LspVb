@@ -10,7 +10,15 @@ import {
 	CompletionItemKind,
 	TextDocumentPositionParams,
 	TextDocumentSyncKind,
-	InitializeResult
+	InitializeResult,
+    Hover,
+    HoverParams,
+    MarkupKind,
+    DocumentSymbol,
+    SymbolKind,
+    DocumentSymbolParams,
+    FoldingRange,
+    FoldingRangeParams
 } from 'vscode-languageserver/node';
 
 import {
@@ -28,8 +36,106 @@ let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 
+// Define keyword documentation map
+const KEYWORDS: Record<string, { detail: string; documentation: string; kind: CompletionItemKind }> = {
+    'Dim': {
+        detail: 'Dim keyword',
+        documentation: 'Declares and allocates storage space for one or more variables.',
+        kind: CompletionItemKind.Keyword
+    },
+    'If': {
+        detail: 'If keyword',
+        documentation: 'Conditionally executes a group of statements, depending on the value of an expression.',
+        kind: CompletionItemKind.Keyword
+    },
+    'Then': {
+        detail: 'Then keyword',
+        documentation: 'Introduces a statement block to be compiled or executed.',
+        kind: CompletionItemKind.Keyword
+    },
+    'Else': {
+        detail: 'Else keyword',
+        documentation: 'Introduces a statement block to be compiled or executed if the condition is False.',
+        kind: CompletionItemKind.Keyword
+    },
+    'End If': {
+        detail: 'End If keyword',
+        documentation: 'Ends an If...Then...Else block.',
+        kind: CompletionItemKind.Keyword
+    },
+    'Sub': {
+        detail: 'Sub keyword',
+        documentation: 'Declares the name, parameters, and code that define a Sub procedure.',
+        kind: CompletionItemKind.Keyword
+    },
+    'Function': {
+        detail: 'Function keyword',
+        documentation: 'Declares the name, parameters, and code that define a Function procedure.',
+        kind: CompletionItemKind.Keyword
+    },
+    'End Sub': {
+        detail: 'End Sub keyword',
+        documentation: 'Terminates the definition of this procedure.',
+        kind: CompletionItemKind.Keyword
+    },
+    'End Function': {
+        detail: 'End Function keyword',
+        documentation: 'Terminates the definition of this procedure.',
+        kind: CompletionItemKind.Keyword
+    },
+    'For': {
+        detail: 'For keyword',
+        documentation: 'Repeats a group of statements a specified number of times.',
+        kind: CompletionItemKind.Keyword
+    },
+    'Next': {
+        detail: 'Next keyword',
+        documentation: 'Ends a For...Next loop.',
+        kind: CompletionItemKind.Keyword
+    },
+    'While': {
+        detail: 'While keyword',
+        documentation: 'Executes a series of statements as long as a given condition is True.',
+        kind: CompletionItemKind.Keyword
+    },
+    'Wend': {
+        detail: 'Wend keyword',
+        documentation: 'Ends a While...Wend loop.',
+        kind: CompletionItemKind.Keyword
+    },
+    'Do': {
+        detail: 'Do keyword',
+        documentation: 'Repeats a block of statements while a Boolean condition is True or until the condition becomes True.',
+        kind: CompletionItemKind.Keyword
+    },
+    'Loop': {
+        detail: 'Loop keyword',
+        documentation: 'Ends a Do...Loop.',
+        kind: CompletionItemKind.Keyword
+    },
+    'As': {
+        detail: 'As keyword',
+        documentation: 'Used in a Dim, ReDim, Static, Private, Public, or Const statement to declare the data type of a variable.',
+        kind: CompletionItemKind.Keyword
+    },
+    'Integer': {
+        detail: 'Integer data type',
+        documentation: 'Holds signed 32-bit (4-byte) integers ranging in value from -2,147,483,648 through 2,147,483,647.',
+        kind: CompletionItemKind.Class
+    },
+    'String': {
+        detail: 'String data type',
+        documentation: 'Holds sequences of unsigned 16-bit (2-byte) code points ranging in value from 0 through 65535.',
+        kind: CompletionItemKind.Class
+    },
+    'Boolean': {
+        detail: 'Boolean data type',
+        documentation: 'Holds values that can be only True or False.',
+        kind: CompletionItemKind.Class
+    }
+};
+
 connection.onInitialize((params: InitializeParams) => {
-    // console.log("DEBUG: onInitialize called"); // cannot log to stdout, it will break protocol
 	const capabilities = params.capabilities;
 
 	// Does the client support the `workspace/configuration` request?
@@ -52,7 +158,11 @@ connection.onInitialize((params: InitializeParams) => {
 			// Tell the client that this server supports code completion.
 			completionProvider: {
 				resolveProvider: true
-			}
+			},
+            // Advertise capabilities
+            hoverProvider: true,
+            documentSymbolProvider: true,
+            foldingRangeProvider: true
 		}
 	};
 	if (hasWorkspaceFolderCapability) {
@@ -86,12 +196,8 @@ documents.onDidChangeContent(change => {
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	// In this simple example we get the settings for every validate run.
 	const text = textDocument.getText();
-	const pattern = /\b[a-z]{2,}\b/g; // Warn about lowercase words (VB is usually PascalCase/uppercase mostly)
-    // Actually, let's do something more specific to VB.
-    // Let's check for missing 'Then' in 'If' statements.
 
 	let m: RegExpExecArray | null;
-
     const diagnostics: Diagnostic[] = [];
 
     // Simple regex for "If ... " without "Then" on the same line (very naive)
@@ -143,106 +249,16 @@ connection.onDidChangeWatchedFiles(_change => {
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
 	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-		// The pass parameter contains the position of the text document in
-		// which code complete got requested. For the example we ignore this
-		// info and always provide the same completion items.
-		return [
-			{
-				label: 'Dim',
-				kind: CompletionItemKind.Keyword,
-				data: 1
-			},
-			{
-				label: 'If',
-				kind: CompletionItemKind.Keyword,
-				data: 2
-			},
-            {
-				label: 'Then',
-				kind: CompletionItemKind.Keyword,
-				data: 3
-			},
-            {
-				label: 'Else',
-				kind: CompletionItemKind.Keyword,
-				data: 4
-			},
-            {
-				label: 'End If',
-				kind: CompletionItemKind.Keyword,
-				data: 5
-			},
-            {
-				label: 'Sub',
-				kind: CompletionItemKind.Keyword,
-				data: 6
-			},
-            {
-				label: 'Function',
-				kind: CompletionItemKind.Keyword,
-				data: 7
-			},
-            {
-				label: 'End Sub',
-				kind: CompletionItemKind.Keyword,
-				data: 8
-			},
-            {
-				label: 'End Function',
-				kind: CompletionItemKind.Keyword,
-				data: 9
-			},
-             {
-				label: 'For',
-				kind: CompletionItemKind.Keyword,
-				data: 10
-			},
-             {
-				label: 'Next',
-				kind: CompletionItemKind.Keyword,
-				data: 11
-			},
-             {
-				label: 'While',
-				kind: CompletionItemKind.Keyword,
-				data: 12
-			},
-             {
-				label: 'Wend',
-				kind: CompletionItemKind.Keyword,
-				data: 13
-			},
-             {
-				label: 'Do',
-				kind: CompletionItemKind.Keyword,
-				data: 14
-			},
-             {
-				label: 'Loop',
-				kind: CompletionItemKind.Keyword,
-				data: 15
-			},
-            {
-				label: 'As',
-				kind: CompletionItemKind.Keyword,
-				data: 16
-			},
-             {
-				label: 'Integer',
-				kind: CompletionItemKind.TypeParameter, // or Class/Interface
-				data: 17
-			},
-             {
-				label: 'String',
-				kind: CompletionItemKind.TypeParameter,
-				data: 18
-			},
-             {
-				label: 'Boolean',
-				kind: CompletionItemKind.TypeParameter,
-				data: 19
-			}
-		];
+		// Generate completion items from KEYWORDS map
+        const items: CompletionItem[] = [];
+        for (const label in KEYWORDS) {
+            items.push({
+                label: label,
+                kind: KEYWORDS[label].kind,
+                data: label // Store the label as data to lookup in resolve
+            });
+        }
+        return items;
 	}
 );
 
@@ -250,16 +266,171 @@ connection.onCompletion(
 // the completion list.
 connection.onCompletionResolve(
 	(item: CompletionItem): CompletionItem => {
-		if (item.data === 1) {
-			item.detail = 'Dim keyword';
-			item.documentation = 'Declares and allocates storage space for one or more variables.';
-		} else if (item.data === 2) {
-			item.detail = 'If keyword';
-			item.documentation = 'Conditionally executes a group of statements, depending on the value of an expression.';
-		}
+        const data = item.data as string;
+        if (KEYWORDS[data]) {
+            item.detail = KEYWORDS[data].detail;
+            item.documentation = KEYWORDS[data].documentation;
+        }
 		return item;
 	}
 );
+
+// This handler provides hover information.
+connection.onHover((params: HoverParams): Hover | null => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+        return null;
+    }
+
+    // Naive word extraction: get line, check word at position
+    const position = params.position;
+    const text = document.getText();
+    const offset = document.offsetAt(position);
+
+    // Simple logic to identify word boundaries around the cursor
+    let start = offset;
+    while (start > 0 && /\w/.test(text.charAt(start - 1))) {
+        start--;
+    }
+
+    let end = offset;
+    while (end < text.length && /\w/.test(text.charAt(end))) {
+        end++;
+    }
+
+    if (start === end) {
+        return null;
+    }
+
+    const word = text.substring(start, end);
+
+    // Check if the word is in our KEYWORDS map
+    let keywordData = KEYWORDS[word];
+    if (!keywordData) {
+        // Try PascalCase
+        const pascal = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        keywordData = KEYWORDS[pascal];
+    }
+
+    if (keywordData) {
+        return {
+            contents: {
+                kind: MarkupKind.Markdown,
+                value: `**${keywordData.detail}**\n\n${keywordData.documentation}`
+            }
+        };
+    }
+
+    return null;
+});
+
+// This handler provides document symbols (outline)
+connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+        return [];
+    }
+    const text = document.getText();
+    const symbols: DocumentSymbol[] = [];
+
+    // Regex to find Sub and Function definitions
+    // Matches: [Public|Private] Sub|Function|Class|Module Name
+    const regex = /^\s*(?:(Public|Private|Friend|Protected)\s+)?(Sub|Function|Class|Module)\s+(\w+)/gm;
+    let m: RegExpExecArray | null;
+
+    while ((m = regex.exec(text))) {
+        const type = m[2]; // Sub, Function, Class, Module
+        const name = m[3];
+
+        let kind: SymbolKind = SymbolKind.Function;
+        if (type === 'Sub') kind = SymbolKind.Method;
+        if (type === 'Class') kind = SymbolKind.Class;
+        if (type === 'Module') kind = SymbolKind.Module;
+
+        // For range, we'll just use the definition line for now
+        const range = {
+            start: document.positionAt(m.index),
+            end: document.positionAt(m.index + m[0].length)
+        };
+        const selectionRange = {
+            start: document.positionAt(m.index + m[0].lastIndexOf(name)),
+            end: document.positionAt(m.index + m[0].lastIndexOf(name) + name.length)
+        };
+
+        symbols.push({
+            name: name,
+            kind: kind,
+            range: range,
+            selectionRange: selectionRange,
+            detail: type
+        });
+    }
+    return symbols;
+});
+
+// This handler provides folding ranges
+connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+        return [];
+    }
+    const text = document.getText();
+    const lines = text.split(/\r?\n/);
+    const ranges: FoldingRange[] = [];
+    const stack: { line: number, type: string }[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        // Remove comments for analysis
+        const rawLine = lines[i];
+        const line = rawLine.split("'")[0].trim();
+        if (!line) continue;
+
+        // Check for block ends
+        let endMatch = false;
+        if (/^End\s+(Sub|Function|If|Class|Module)/i.test(line)) endMatch = true;
+        else if (/^Next(\s+|$)/i.test(line)) endMatch = true;
+        else if (/^Wend(\s+|$)/i.test(line)) endMatch = true;
+        else if (/^Loop(\s+|$)/i.test(line)) endMatch = true;
+
+        if (endMatch) {
+            if (stack.length > 0) {
+                 const start = stack.pop();
+                 if (start) {
+                     // Fold from start line to current line - 1
+                     // (Keep the End line visible)
+                     ranges.push({
+                         startLine: start.line,
+                         endLine: i - 1
+                     });
+                 }
+            }
+            // End line cannot be a start line (unless mixed, which is bad style)
+            continue;
+        }
+
+        // Check for block starts
+        let startType: string | null = null;
+
+        if (/^(?:(Public|Private|Friend|Protected)\s+)?(Sub|Function|Class|Module)\b/i.test(line)) {
+            startType = 'block';
+        } else if (/^If\b.*?\bThen\s*$/i.test(line)) {
+             // Block If check: If ... Then (and nothing else on line)
+             startType = 'if';
+        } else if (/^For\b/i.test(line)) {
+             startType = 'for';
+        } else if (/^While\b/i.test(line)) {
+             startType = 'while';
+        } else if (/^Do\b/i.test(line)) {
+             startType = 'do';
+        }
+
+        if (startType) {
+            stack.push({ line: i, type: startType });
+        }
+    }
+
+    return ranges;
+});
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
