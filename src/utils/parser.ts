@@ -1,27 +1,32 @@
 import { DocumentSymbol, SymbolKind, Range } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
-export interface MySymbol {
-    name: string;
-    kind: SymbolKind;
-    range: Range;
-    selectionRange: Range;
-    detail: string;
-}
+// Regex for Sub, Function, Class, Module
+// Matches: [Public|Private] Sub|Function|Class|Module Name
+const BLOCK_REGEX = /^\s*(?:(Public|Private|Friend|Protected)\s+)?(Sub|Function|Class|Module)\s+(\w+)/gm;
+
+// Variable Regex:
+// 1. Dim Name
+const DIM_REGEX = /^\s*Dim\s+(\w+)(?:\s+As\s+(\w+))?/gmi;
+
+// 2. Const Name
+const CONST_REGEX = /^\s*(?:(Public|Private)\s+)?Const\s+(\w+)(?:\s+As\s+(\w+))?/gmi;
+
+// 3. Module Level Variables (Private/Public x As Type) - excluding Sub/Function/Const
+// Matches: Private x As Integer
+const FIELD_REGEX = /^\s*(Public|Private|Friend|Protected)\s+(\w+)(?:\s+As\s+(\w+))?/gm;
 
 /**
  * Parses the document to extract symbols (variables, functions, subs, classes).
  */
-export function parseDocumentSymbols(document: TextDocument): MySymbol[] {
+export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
     const text = document.getText();
-    const symbols: MySymbol[] = [];
-
-    // Regex for Sub, Function, Class, Module
-    // Matches: [Public|Private] Sub|Function|Class|Module Name
-    const blockRegex = /^\s*(?:(Public|Private|Friend|Protected)\s+)?(Sub|Function|Class|Module)\s+(\w+)/gm;
+    const symbols: DocumentSymbol[] = [];
     let m: RegExpExecArray | null;
 
-    while ((m = blockRegex.exec(text))) {
+    // Reset lastIndex for global regexes
+    BLOCK_REGEX.lastIndex = 0;
+    while ((m = BLOCK_REGEX.exec(text))) {
         const type = m[2]; // Sub, Function, Class, Module
         const name = m[3];
 
@@ -44,14 +49,13 @@ export function parseDocumentSymbols(document: TextDocument): MySymbol[] {
             kind: kind,
             range: range,
             selectionRange: selectionRange,
-            detail: type
+            detail: type,
+            children: []
         });
     }
 
-    // Variable Regex:
-    // 1. Dim Name
-    const dimRegex = /^\s*Dim\s+(\w+)(?:\s+As\s+(\w+))?/gmi;
-    while ((m = dimRegex.exec(text))) {
+    DIM_REGEX.lastIndex = 0;
+    while ((m = DIM_REGEX.exec(text))) {
         const name = m[1];
         const type = m[2] || 'Object';
         symbols.push({
@@ -65,13 +69,13 @@ export function parseDocumentSymbols(document: TextDocument): MySymbol[] {
                 start: document.positionAt(m.index + m[0].indexOf(name)),
                 end: document.positionAt(m.index + m[0].indexOf(name) + name.length)
             },
-            detail: `Dim ${name} As ${type}`
+            detail: `Dim ${name} As ${type}`,
+            children: []
         });
     }
 
-    // 2. Const Name
-    const constRegex = /^\s*(?:(Public|Private)\s+)?Const\s+(\w+)(?:\s+As\s+(\w+))?/gmi;
-    while ((m = constRegex.exec(text))) {
+    CONST_REGEX.lastIndex = 0;
+    while ((m = CONST_REGEX.exec(text))) {
         const name = m[2];
         const type = m[3] || 'Object';
         symbols.push({
@@ -85,16 +89,13 @@ export function parseDocumentSymbols(document: TextDocument): MySymbol[] {
                 start: document.positionAt(m.index + m[0].indexOf(name)),
                 end: document.positionAt(m.index + m[0].indexOf(name) + name.length)
             },
-            detail: `Const ${name} As ${type}`
+            detail: `Const ${name} As ${type}`,
+            children: []
         });
     }
 
-    // 3. Module Level Variables (Private/Public x As Type) - excluding Sub/Function/Const
-    // This is tricky with regex.
-    // Matches: Private x As Integer
-    // But NOT: Private Sub ...
-    const fieldRegex = /^\s*(Public|Private|Friend|Protected)\s+(\w+)(?:\s+As\s+(\w+))?/gm;
-    while ((m = fieldRegex.exec(text))) {
+    FIELD_REGEX.lastIndex = 0;
+    while ((m = FIELD_REGEX.exec(text))) {
         const modifier = m[1];
         const name = m[2];
         // Ensure name is not a keyword for block start
@@ -112,7 +113,8 @@ export function parseDocumentSymbols(document: TextDocument): MySymbol[] {
                 start: document.positionAt(m.index + m[0].indexOf(name)),
                 end: document.positionAt(m.index + m[0].indexOf(name) + name.length)
             },
-            detail: `${modifier} ${name} As ${type}`
+            detail: `${modifier} ${name} As ${type}`,
+            children: []
         });
     }
 
