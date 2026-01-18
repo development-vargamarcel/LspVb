@@ -4,19 +4,28 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 
 ## Features
 
-- **Code Completion**: Context-aware completion for keywords (`If`, `For`, `Sub`, etc.) and basic types.
+- **Code Completion**: Context-aware completion for keywords (`If`, `For`, `Sub`, etc.) and basic types, including snippets for common control structures.
 - **Diagnostics**: Real-time validation for:
-    - Missing block endings (e.g., `If` without `End If`).
-    - Missing `Then` in `If` statements.
-    - `Dim` declarations without types (Warning).
-    - `Const` declarations without values.
-    - Mismatched blocks (e.g., closing `If` with `End Sub`).
+    - Syntax errors: Missing `Then` in `If` statements, `Dim` declarations without types, `Const` without values.
+    - Block structure errors: Missing closing statements (`End Sub`, `Next`, etc.), mismatched blocks (e.g., closing `If` with `End Sub`), and unclosed nested blocks.
 - **Document Symbols**: Outline view support for Sub, Function, Class, Module, Constants, and Variables.
-- **Hover Information**: Basic hover support.
-- **Folding**: Range folding for blocks.
+- **Hover Information**: Basic hover support for keywords and user-defined symbols.
+- **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.).
 - **Formatting**: Basic indentation adjustment.
 
-## Setup
+## Architecture
+
+- **`src/server.ts`**: Main entry point. Handles LSP connection and event delegation. Uses a `ValidationScheduler` for debounced validation.
+- **`src/features/`**: Contains individual feature implementations (completion, validation, etc.).
+    - `validation.ts`: Implements a stack-based validator for block structures and regex-based line checks.
+- **`src/utils/`**: Helper utilities.
+    - `parser.ts`: Regex-based parser for symbol extraction.
+    - `regexes.ts`: Centralized regex definitions for consistency.
+    - `scheduler.ts`: Manages validation scheduling (debouncing).
+    - `safeHandler.ts`: Wrapper for LSP handlers to ensure safe execution and consistent error logging.
+    - `logger.ts`: Simple logging wrapper.
+
+## Setup & Development
 
 1.  **Install Dependencies**:
     ```bash
@@ -28,27 +37,20 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
     npm run build
     ```
 
-3.  **Run Server**:
+3.  **Run Tests**:
+    The project uses Mocha and Chai for testing.
+    ```bash
+    npm test
+    ```
+
+4.  **Run Server**:
     The server runs over stdio.
     ```bash
     node out/server.js --stdio
     ```
 
-4.  **Run Tests**:
-    ```bash
-    npx mocha -r ts-node/register tests/*.test.ts
-    ```
-
-## Architecture
-
-- **`src/server.ts`**: Main entry point. Handles LSP connection and event delegation.
-- **`src/features/`**: Contains individual feature implementations (completion, validation, etc.).
-- **`src/utils/parser.ts`**: Regex-based parser for symbol extraction.
-- **`src/utils/regexes.ts`**: Centralized regex definitions.
-- **`src/utils/logger.ts`**: Simple logging wrapper.
-
 ## Assumptions & Limitations
 
-- The parser is regex-based and may not handle all edge cases of full VB syntax (e.g., complex multi-line statements with line continuations in unexpected places).
-- Validation is heuristic-based (stack logic).
-- Case insensitivity is handled by regex flags, but some logic might assume normalized input.
+- **Heuristic Parsing**: The parser is regex-based and optimized for speed. It may not handle all edge cases of full VB syntax (e.g., complex multi-line statements with line continuations in unexpected places).
+- **Validation**: Block validation assumes a well-formed structure. While it handles nested blocks, extremely complex nesting or mixed control structures might produce generic error messages.
+- **Case Sensitivity**: The server is largely case-insensitive for keywords (VB style), but internal logic normalizes keys to lowercase for lookups.

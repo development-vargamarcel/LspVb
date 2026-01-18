@@ -13,55 +13,62 @@ import {
 export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
     const text = document.getText();
     const symbols: DocumentSymbol[] = [];
-    let m: RegExpExecArray | null;
 
     // 1. Blocks (Sub, Function, Class, Module)
-    PARSER_BLOCK_REGEX.lastIndex = 0;
-    while ((m = PARSER_BLOCK_REGEX.exec(text))) {
-        // m[1] is modifier (optional)
+    extractSymbols(text, PARSER_BLOCK_REGEX, (m) => {
         const type = m[2]; // Sub, Function, Class, Module
         const name = m[3];
-
         let kind: SymbolKind = SymbolKind.Function;
         if (type === 'Sub') kind = SymbolKind.Method;
         if (type === 'Class') kind = SymbolKind.Class;
         if (type === 'Module') kind = SymbolKind.Module;
         if (type === 'Property') kind = SymbolKind.Property;
-
-        symbols.push(createSymbol(name, kind, type, m, document));
-    }
+        return { name, kind, detail: type };
+    }, document, symbols);
 
     // 2. Dim Variables
-    PARSER_DIM_REGEX.lastIndex = 0;
-    while ((m = PARSER_DIM_REGEX.exec(text))) {
+    extractSymbols(text, PARSER_DIM_REGEX, (m) => {
         const name = m[1];
         const type = m[2] || 'Object';
-        symbols.push(createSymbol(name, SymbolKind.Variable, `Dim ${name} As ${type}`, m, document));
-    }
+        return { name, kind: SymbolKind.Variable, detail: `Dim ${name} As ${type}` };
+    }, document, symbols);
 
     // 3. Constants
-    PARSER_CONST_REGEX.lastIndex = 0;
-    while ((m = PARSER_CONST_REGEX.exec(text))) {
-        // m[1] is modifier
+    extractSymbols(text, PARSER_CONST_REGEX, (m) => {
         const name = m[2];
         const type = m[3] || 'Object';
-        symbols.push(createSymbol(name, SymbolKind.Constant, `Const ${name} As ${type}`, m, document));
-    }
+        return { name, kind: SymbolKind.Constant, detail: `Const ${name} As ${type}` };
+    }, document, symbols);
 
     // 4. Fields (Module/Class level variables)
-    PARSER_FIELD_REGEX.lastIndex = 0;
-    while ((m = PARSER_FIELD_REGEX.exec(text))) {
+    extractSymbols(text, PARSER_FIELD_REGEX, (m) => {
         const modifier = m[1];
         const name = m[2];
-
         // Safety check to avoid keywords being picked up as fields if regex is too loose
-        if (/^(Sub|Function|Class|Module|Const|Property)$/i.test(name)) continue;
+        if (/^(Sub|Function|Class|Module|Const|Property)$/i.test(name)) return null;
 
         const type = m[3] || 'Object';
-        symbols.push(createSymbol(name, SymbolKind.Field, `${modifier} ${name} As ${type}`, m, document));
-    }
+        return { name, kind: SymbolKind.Field, detail: `${modifier} ${name} As ${type}` };
+    }, document, symbols);
 
     return symbols;
+}
+
+function extractSymbols(
+    text: string,
+    regex: RegExp,
+    extractor: (match: RegExpExecArray) => { name: string, kind: SymbolKind, detail: string } | null,
+    document: TextDocument,
+    symbols: DocumentSymbol[]
+) {
+    regex.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(text))) {
+        const result = extractor(m);
+        if (result) {
+            symbols.push(createSymbol(result.name, result.kind, result.detail, m, document));
+        }
+    }
 }
 
 function createSymbol(name: string, kind: SymbolKind, detail: string, match: RegExpExecArray, document: TextDocument): DocumentSymbol {
