@@ -31,17 +31,18 @@ import { onFoldingRanges } from './features/folding';
 import { onDefinition } from './features/definition';
 import { parseDocumentSymbols } from './utils/parser';
 import { formatDocument } from './features/formatting';
+import { Logger } from './utils/logger';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 const connection = createConnection(ProposedFeatures.all);
+Logger.setConnection(connection);
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
-let hasDiagnosticRelatedInformationCapability = false;
 
 connection.onInitialize((params: InitializeParams) => {
 	const capabilities = params.capabilities;
@@ -53,11 +54,6 @@ connection.onInitialize((params: InitializeParams) => {
 	);
 	hasWorkspaceFolderCapability = !!(
 		capabilities.workspace && !!capabilities.workspace.workspaceFolders
-	);
-	hasDiagnosticRelatedInformationCapability = !!(
-		capabilities.textDocument &&
-		capabilities.textDocument.publishDiagnostics &&
-		capabilities.textDocument.publishDiagnostics.relatedInformation
 	);
 
 	const result: InitializeResult = {
@@ -92,7 +88,7 @@ connection.onInitialized(() => {
 	}
 	if (hasWorkspaceFolderCapability) {
 		connection.workspace.onDidChangeWorkspaceFolders(_event => {
-			connection.console.log('Workspace folder change event received.');
+			Logger.log('Workspace folder change event received.');
 		});
 	}
 });
@@ -114,7 +110,7 @@ documents.onDidChangeContent(change => {
             const diagnostics = validateTextDocument(change.document);
             connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
         } catch (error) {
-            connection.console.error(`Validation failed: ${error}`);
+            Logger.error(`Validation failed: ${error}`);
         } finally {
             validationTimers.delete(uri);
         }
@@ -125,7 +121,7 @@ documents.onDidChangeContent(change => {
 
 connection.onDidChangeWatchedFiles(_change => {
 	// Monitored files have change in VSCode
-	connection.console.log('We received an file change event');
+	Logger.log('We received an file change event');
 });
 
 // This handler provides the initial list of the completion items.
@@ -136,7 +132,7 @@ connection.onCompletion(
         try {
             return onCompletion(params, document);
         } catch (error) {
-            connection.console.error(`Completion failed: ${error}`);
+            Logger.error(`Completion failed: ${error}`);
             return [];
         }
 	}
@@ -157,7 +153,7 @@ connection.onHover((params: HoverParams): Hover | null => {
     try {
         return onHover(params, document);
     } catch (error) {
-        connection.console.error(`Hover failed: ${error}`);
+        Logger.error(`Hover failed: ${error}`);
         return null;
     }
 });
@@ -169,7 +165,7 @@ connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] => 
     try {
         return parseDocumentSymbols(document);
     } catch (error) {
-        connection.console.error(`DocumentSymbol failed: ${error}`);
+        Logger.error(`DocumentSymbol failed: ${error}`);
         return [];
     }
 });
@@ -181,7 +177,7 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
     try {
         return onFoldingRanges(params, document);
     } catch (error) {
-        connection.console.error(`FoldingRanges failed: ${error}`);
+        Logger.error(`FoldingRanges failed: ${error}`);
         return [];
     }
 });
@@ -193,7 +189,7 @@ connection.onDefinition((params: DefinitionParams): Definition | null => {
     try {
         return onDefinition(params, document);
     } catch (error) {
-        connection.console.error(`Definition failed: ${error}`);
+        Logger.error(`Definition failed: ${error}`);
         return null;
     }
 });
@@ -205,7 +201,7 @@ connection.onDocumentFormatting((params: DocumentFormattingParams): TextEdit[] =
     try {
         return formatDocument(document, params.options);
     } catch (error) {
-        connection.console.error(`Formatting failed: ${error}`);
+        Logger.error(`Formatting failed: ${error}`);
         return [];
     }
 });

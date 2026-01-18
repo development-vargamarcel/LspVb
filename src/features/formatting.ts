@@ -1,4 +1,15 @@
 import { TextDocument, TextEdit, FormattingOptions, Range } from 'vscode-languageserver/node';
+import {
+    VAL_BLOCK_START_REGEX,
+    VAL_FOR_START_REGEX,
+    VAL_DO_START_REGEX,
+    VAL_SELECT_CASE_START_REGEX,
+    VAL_WHILE_START_REGEX,
+    VAL_BLOCK_END_REGEX,
+    VAL_NEXT_REGEX,
+    VAL_LOOP_REGEX,
+    VAL_WEND_REGEX
+} from '../utils/regexes';
 
 export function formatDocument(document: TextDocument, options: FormattingOptions): TextEdit[] {
     const text = document.getText();
@@ -9,19 +20,11 @@ export function formatDocument(document: TextDocument, options: FormattingOption
     const indentString = options.insertSpaces ? ' '.repeat(options.tabSize) : '\t';
 
     // Regex definitions
-    // Start blocks
-    const blockStartRegex = /^\s*(?:(?:Public|Private|Friend|Protected)\s+)?(?:Sub|Function|Class|Module|Property)\b/i;
-    const ifStartRegex = /^\s*If\b.*\bThen\s*(?:'.*)?$/i; // Ends with Then (and optional comment)
-    const forStartRegex = /^\s*For\b/i;
-    const doStartRegex = /^\s*Do\b/i;
-    const selectStartRegex = /^\s*Select\s+Case\b/i;
-    const whileStartRegex = /^\s*While\b/i;
+    // We reuse centralized regexes where possible.
+    // Note: VAL_* regexes are case-insensitive and match start of line.
 
-    // End blocks
-    const blockEndRegex = /^\s*End\s+(?:Sub|Function|Class|Module|Property|If|Select)\b/i;
-    const nextRegex = /^\s*Next\b/i;
-    const loopRegex = /^\s*Loop\b/i;
-    const wendRegex = /^\s*Wend\b/i;
+    // Additional Formatting-specific regexes
+    const ifStartRegex = /^\s*If\b.*\bThen\s*(?:'.*)?$/i; // Ends with Then (and optional comment) - Stricter than validation for formatting purposes
 
     // Middle blocks (dedent for this line, indent for next)
     const elseRegex = /^\s*Else(?:If)?\b/i;
@@ -38,10 +41,10 @@ export function formatDocument(document: TextDocument, options: FormattingOption
         let currentLevel = indentLevel;
 
         // Check for decrease indent
-        if (blockEndRegex.test(trimmed) ||
-            nextRegex.test(trimmed) ||
-            loopRegex.test(trimmed) ||
-            wendRegex.test(trimmed)) {
+        if (VAL_BLOCK_END_REGEX.test(trimmed) ||
+            VAL_NEXT_REGEX.test(trimmed) ||
+            VAL_LOOP_REGEX.test(trimmed) ||
+            VAL_WEND_REGEX.test(trimmed)) {
             currentLevel--;
             indentLevel--; // Permanently decrease
         }
@@ -70,13 +73,37 @@ export function formatDocument(document: TextDocument, options: FormattingOption
         }
 
         // Check for increase indent for NEXT line
-        if (blockStartRegex.test(trimmed) ||
+        if (VAL_BLOCK_START_REGEX.test(trimmed) ||
             ifStartRegex.test(trimmed) ||
-            forStartRegex.test(trimmed) ||
-            doStartRegex.test(trimmed) ||
-            selectStartRegex.test(trimmed) ||
-            whileStartRegex.test(trimmed)) {
-            indentLevel++;
+            VAL_FOR_START_REGEX.test(trimmed) ||
+            VAL_DO_START_REGEX.test(trimmed) ||
+            VAL_SELECT_CASE_START_REGEX.test(trimmed) ||
+            VAL_WHILE_START_REGEX.test(trimmed) ||
+            elseRegex.test(trimmed) ||
+            caseRegex.test(trimmed)
+            ) {
+             // Logic correction: Else/Case dedent for current line but indent for next?
+             // Actually:
+             // If ... Then
+             //   Indent
+             // Else
+             //   Indent
+             // End If
+
+             // So 'Else' line itself is at Level-1, but subsequent lines are at Level.
+             // If we handled 'Else' in decrease section (currentLevel--), then indentLevel is still high.
+             // Wait, if indentLevel is 1.
+             // If ... Then -> indentLevel becomes 1.
+             // (next lines at 1)
+             // Else -> We want it at 0. So currentLevel = indentLevel - 1.
+             // But subsequent lines should be at 1. So indentLevel remains 1.
+             // So we do NOT increase indentLevel for Else.
+
+             if (elseRegex.test(trimmed) || caseRegex.test(trimmed)) {
+                 // Do nothing to indentLevel, it stays high.
+             } else {
+                 indentLevel++;
+             }
         }
     }
 
