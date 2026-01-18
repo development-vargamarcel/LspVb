@@ -1,20 +1,11 @@
-import { DocumentSymbol, SymbolKind, Range } from 'vscode-languageserver/node';
+import { DocumentSymbol, SymbolKind } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-
-// Regex for Sub, Function, Class, Module
-// Matches: [Public|Private] Sub|Function|Class|Module Name
-const BLOCK_REGEX = /^\s*(?:(Public|Private|Friend|Protected)\s+)?(Sub|Function|Class|Module)\s+(\w+)/gm;
-
-// Variable Regex:
-// 1. Dim Name
-const DIM_REGEX = /^\s*Dim\s+(\w+)(?:\s+As\s+(\w+))?/gmi;
-
-// 2. Const Name
-const CONST_REGEX = /^\s*(?:(Public|Private)\s+)?Const\s+(\w+)(?:\s+As\s+(\w+))?/gmi;
-
-// 3. Module Level Variables (Private/Public x As Type) - excluding Sub/Function/Const
-// Matches: Private x As Integer
-const FIELD_REGEX = /^\s*(Public|Private|Friend|Protected)\s+(\w+)(?:\s+As\s+(\w+))?/gm;
+import {
+    PARSER_BLOCK_REGEX,
+    PARSER_DIM_REGEX,
+    PARSER_CONST_REGEX,
+    PARSER_FIELD_REGEX
+} from './regexes';
 
 /**
  * Parses the document to extract symbols (variables, functions, subs, classes).
@@ -24,9 +15,10 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
     const symbols: DocumentSymbol[] = [];
     let m: RegExpExecArray | null;
 
-    // Reset lastIndex for global regexes
-    BLOCK_REGEX.lastIndex = 0;
-    while ((m = BLOCK_REGEX.exec(text))) {
+    // 1. Blocks (Sub, Function, Class, Module)
+    PARSER_BLOCK_REGEX.lastIndex = 0;
+    while ((m = PARSER_BLOCK_REGEX.exec(text))) {
+        // m[1] is modifier (optional)
         const type = m[2]; // Sub, Function, Class, Module
         const name = m[3];
 
@@ -34,89 +26,61 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         if (type === 'Sub') kind = SymbolKind.Method;
         if (type === 'Class') kind = SymbolKind.Class;
         if (type === 'Module') kind = SymbolKind.Module;
+        if (type === 'Property') kind = SymbolKind.Property;
 
-        const range = {
-            start: document.positionAt(m.index),
-            end: document.positionAt(m.index + m[0].length)
-        };
-        const selectionRange = {
-            start: document.positionAt(m.index + m[0].lastIndexOf(name)),
-            end: document.positionAt(m.index + m[0].lastIndexOf(name) + name.length)
-        };
-
-        symbols.push({
-            name: name,
-            kind: kind,
-            range: range,
-            selectionRange: selectionRange,
-            detail: type,
-            children: []
-        });
+        symbols.push(createSymbol(name, kind, type, m, document));
     }
 
-    DIM_REGEX.lastIndex = 0;
-    while ((m = DIM_REGEX.exec(text))) {
+    // 2. Dim Variables
+    PARSER_DIM_REGEX.lastIndex = 0;
+    while ((m = PARSER_DIM_REGEX.exec(text))) {
         const name = m[1];
         const type = m[2] || 'Object';
-        symbols.push({
-            name: name,
-            kind: SymbolKind.Variable,
-            range: {
-                start: document.positionAt(m.index),
-                end: document.positionAt(m.index + m[0].length)
-            },
-            selectionRange: {
-                start: document.positionAt(m.index + m[0].indexOf(name)),
-                end: document.positionAt(m.index + m[0].indexOf(name) + name.length)
-            },
-            detail: `Dim ${name} As ${type}`,
-            children: []
-        });
+        symbols.push(createSymbol(name, SymbolKind.Variable, `Dim ${name} As ${type}`, m, document));
     }
 
-    CONST_REGEX.lastIndex = 0;
-    while ((m = CONST_REGEX.exec(text))) {
+    // 3. Constants
+    PARSER_CONST_REGEX.lastIndex = 0;
+    while ((m = PARSER_CONST_REGEX.exec(text))) {
+        // m[1] is modifier
         const name = m[2];
         const type = m[3] || 'Object';
-        symbols.push({
-            name: name,
-            kind: SymbolKind.Constant,
-            range: {
-                start: document.positionAt(m.index),
-                end: document.positionAt(m.index + m[0].length)
-            },
-            selectionRange: {
-                start: document.positionAt(m.index + m[0].indexOf(name)),
-                end: document.positionAt(m.index + m[0].indexOf(name) + name.length)
-            },
-            detail: `Const ${name} As ${type}`,
-            children: []
-        });
+        symbols.push(createSymbol(name, SymbolKind.Constant, `Const ${name} As ${type}`, m, document));
     }
 
-    FIELD_REGEX.lastIndex = 0;
-    while ((m = FIELD_REGEX.exec(text))) {
+    // 4. Fields (Module/Class level variables)
+    PARSER_FIELD_REGEX.lastIndex = 0;
+    while ((m = PARSER_FIELD_REGEX.exec(text))) {
         const modifier = m[1];
         const name = m[2];
-        // Ensure name is not a keyword for block start
+
+        // Safety check to avoid keywords being picked up as fields if regex is too loose
         if (/^(Sub|Function|Class|Module|Const|Property)$/i.test(name)) continue;
 
         const type = m[3] || 'Object';
-        symbols.push({
-            name: name,
-            kind: SymbolKind.Field,
-            range: {
-                start: document.positionAt(m.index),
-                end: document.positionAt(m.index + m[0].length)
-            },
-            selectionRange: {
-                start: document.positionAt(m.index + m[0].indexOf(name)),
-                end: document.positionAt(m.index + m[0].indexOf(name) + name.length)
-            },
-            detail: `${modifier} ${name} As ${type}`,
-            children: []
-        });
+        symbols.push(createSymbol(name, SymbolKind.Field, `${modifier} ${name} As ${type}`, m, document));
     }
 
     return symbols;
+}
+
+function createSymbol(name: string, kind: SymbolKind, detail: string, match: RegExpExecArray, document: TextDocument): DocumentSymbol {
+    const matchStr = match[0];
+    const index = match.index;
+    const nameIndex = matchStr.indexOf(name); // naive finding of name in match string
+
+    return {
+        name: name,
+        kind: kind,
+        range: {
+            start: document.positionAt(index),
+            end: document.positionAt(index + matchStr.length)
+        },
+        selectionRange: {
+            start: document.positionAt(index + nameIndex),
+            end: document.positionAt(index + nameIndex + name.length)
+        },
+        detail: detail,
+        children: []
+    };
 }

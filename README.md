@@ -1,151 +1,54 @@
-# Simple Visual Basic Language Server
+# Visual Basic Language Server
 
-This is a simple Language Server Protocol (LSP) implementation for Visual Basic, designed to be compatible with editors like Monaco Editor.
+A lightweight Language Server Protocol (LSP) implementation for Visual Basic, designed to work with Monaco Editor or VS Code.
 
 ## Features
 
-*   **Completions**:
-    *   Basic Visual Basic keywords (e.g., `Dim`, `If`, `Then`, `Else`, `Sub`, `Function`, etc.).
-    *   **Snippets**: Quick insertion of common blocks like `If...Then...End If`, `Sub...End Sub`, `For...Next`, etc.
-*   **Diagnostics**:
-    *   Checks for `If` statements missing `Then`.
-    *   Checks for `Dim` declarations missing `As` (variable type).
-    *   **Block Structure**: Validates missing closing statements (e.g., `If` without `End If`, `Sub` without `End Sub`) and mismatched blocks.
-*   **Formatting**:
-    *   Basic document formatting (indentation) based on block structure.
-*   **Document Symbols**: Outline of Subs, Functions, Classes, Modules, and Variables.
+- **Code Completion**: Context-aware completion for keywords (`If`, `For`, `Sub`, etc.) and basic types.
+- **Diagnostics**: Real-time validation for:
+    - Missing block endings (e.g., `If` without `End If`).
+    - Missing `Then` in `If` statements.
+    - `Dim` declarations without types (Warning).
+    - `Const` declarations without values.
+    - Mismatched blocks (e.g., closing `If` with `End Sub`).
+- **Document Symbols**: Outline view support for Sub, Function, Class, Module, Constants, and Variables.
+- **Hover Information**: Basic hover support.
+- **Folding**: Range folding for blocks.
+- **Formatting**: Basic indentation adjustment.
 
-## Installation
+## Setup
 
-1.  Clone the repository.
-2.  Install dependencies:
+1.  **Install Dependencies**:
     ```bash
     npm install
     ```
-3.  Build the server:
+
+2.  **Build**:
     ```bash
     npm run build
     ```
 
-## Usage
-
-The server runs on Node.js and communicates via standard input/output (stdio).
-
-To start the server:
-
-```bash
-node out/server.js --stdio
-```
-
-## Integrating with Monaco Editor
-
-To use this language server with Monaco Editor, you typically need a WebSocket to connecting the browser to the server process. Since this server runs over stdio, you can use a library like `monaco-languageclient` and a WebSocket bridge (like `vscode-ws-jsonrpc`).
-
-### Conceptual Setup
-
-1.  **Backend (Node.js)**:
-    *   Set up a WebSocket server (e.g., using `ws`).
-    *   When a connection is received, spawn the language server process:
-        ```javascript
-        const ws = require('ws');
-        const http = require('http');
-        const url = require('url');
-        const net = require('net');
-        const express = require('express');
-        const rpc = require('vscode-ws-jsonrpc');
-        const server = require('vscode-ws-jsonrpc/server');
-        const launch = require('vscode-ws-jsonrpc/server/launch');
-
-        const wss = new ws.Server({
-            noServer: true,
-            perMessageDeflate: false
-        });
-
-        const serverPort = 3000;
-
-        // ... setup express/http server ...
-
-        server.on('upgrade', (request, socket, head) => {
-            // ... handle upgrade ...
-             wss.handleUpgrade(request, socket, head, webSocket => {
-                const socket = {
-                    send: content => webSocket.send(content, error => {
-                        if (error) {
-                            throw error;
-                        }
-                    }),
-                    onMessage: cb => webSocket.on('message', cb),
-                    onError: cb => webSocket.on('error', cb),
-                    onClose: cb => webSocket.on('close', cb),
-                    dispose: () => webSocket.close()
-                };
-                // Launch the language server
-                if (webSocket.readyState === webSocket.OPEN) {
-                    launch(socket);
-                } else {
-                    webSocket.on('open', () => launch(socket));
-                }
-            });
-        });
-
-        function launch(socket) {
-            const reader = new rpc.WebSocketMessageReader(socket);
-            const writer = new rpc.WebSocketMessageWriter(socket);
-            // Start the language server process
-            const socketConnection = server.createConnection(reader, writer, () => socket.dispose());
-            const serverConnection = server.createServerProcess('VB-LSP', 'node', ['/path/to/out/server.js', '--stdio']);
-            server.forward(socketConnection, serverConnection, message => {
-                if (rpc.isRequestMessage(message)) {
-                    // ...
-                }
-                return message;
-            });
-        }
-        ```
-
-2.  **Frontend (Browser/Monaco)**:
-    *   Use `monaco-languageclient` to connect to the WebSocket.
-    *   Register the language and the client.
-
-    ```javascript
-    import { MonacoLanguageClient, CloseAction, ErrorAction, MonacoServices, MessageConnection } from 'monaco-languageclient';
-    import { listen } from 'vscode-ws-jsonrpc';
-    import normalizeUrl from 'normalize-url';
-
-    // ... setup Monaco ...
-
-    // create the web socket
-    const url = createUrl('/sampleServer');
-    const webSocket = new WebSocket(url);
-
-    listen({
-        webSocket,
-        onConnection: connection => {
-            // create and start the language client
-            const languageClient = createLanguageClient(connection);
-            const disposable = languageClient.start();
-            connection.onClose(() => disposable.dispose());
-        }
-    });
-
-    function createLanguageClient(connection) {
-        return new MonacoLanguageClient({
-            name: "Visual Basic Language Client",
-            clientOptions: {
-                // use a language id as a document selector
-                documentSelector: ['vb'],
-                // disable the default error handler
-                errorHandler: {
-                    error: () => ErrorAction.Continue,
-                    closed: () => CloseAction.DoNotRestart
-                }
-            },
-            // create a language client connection from the JSON RPC connection on demand
-            connectionProvider: {
-                get: (errorHandler, closeHandler) => {
-                    return Promise.resolve(connection);
-                }
-            }
-        });
-    }
+3.  **Run Server**:
+    The server runs over stdio.
+    ```bash
+    node out/server.js --stdio
     ```
+
+4.  **Run Tests**:
+    ```bash
+    npx mocha -r ts-node/register tests/*.test.ts
+    ```
+
+## Architecture
+
+- **`src/server.ts`**: Main entry point. Handles LSP connection and event delegation.
+- **`src/features/`**: Contains individual feature implementations (completion, validation, etc.).
+- **`src/utils/parser.ts`**: Regex-based parser for symbol extraction.
+- **`src/utils/regexes.ts`**: Centralized regex definitions.
+- **`src/utils/logger.ts`**: Simple logging wrapper.
+
+## Assumptions & Limitations
+
+- The parser is regex-based and may not handle all edge cases of full VB syntax (e.g., complex multi-line statements with line continuations in unexpected places).
+- Validation is heuristic-based (stack logic).
+- Case insensitivity is handled by regex flags, but some logic might assume normalized input.
