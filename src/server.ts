@@ -15,7 +15,9 @@ import {
     FoldingRange,
     FoldingRangeParams,
     DefinitionParams,
-    Definition
+    Definition,
+    DocumentFormattingParams,
+    TextEdit
 } from 'vscode-languageserver/node';
 
 import {
@@ -28,6 +30,7 @@ import { onHover } from './features/hover';
 import { onFoldingRanges } from './features/folding';
 import { onDefinition } from './features/definition';
 import { parseDocumentSymbols } from './utils/parser';
+import { formatDocument } from './features/formatting';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -68,7 +71,8 @@ connection.onInitialize((params: InitializeParams) => {
             hoverProvider: true,
             documentSymbolProvider: true,
             foldingRangeProvider: true,
-            definitionProvider: true
+            definitionProvider: true,
+            documentFormattingProvider: true
 		}
 	};
 	if (hasWorkspaceFolderCapability) {
@@ -191,6 +195,18 @@ connection.onDefinition((params: DefinitionParams): Definition | null => {
     } catch (error) {
         connection.console.error(`Definition failed: ${error}`);
         return null;
+    }
+});
+
+// This handler provides formatting
+connection.onDocumentFormatting((params: DocumentFormattingParams): TextEdit[] => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) return [];
+    try {
+        return formatDocument(document, params.options);
+    } catch (error) {
+        connection.console.error(`Formatting failed: ${error}`);
+        return [];
     }
 });
 

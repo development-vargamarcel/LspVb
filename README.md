@@ -4,10 +4,16 @@ This is a simple Language Server Protocol (LSP) implementation for Visual Basic,
 
 ## Features
 
-*   **Completions**: Basic Visual Basic keywords (e.g., `Dim`, `If`, `Then`, `Else`, `Sub`, `Function`, etc.).
+*   **Completions**:
+    *   Basic Visual Basic keywords (e.g., `Dim`, `If`, `Then`, `Else`, `Sub`, `Function`, etc.).
+    *   **Snippets**: Quick insertion of common blocks like `If...Then...End If`, `Sub...End Sub`, `For...Next`, etc.
 *   **Diagnostics**:
     *   Checks for `If` statements missing `Then`.
     *   Checks for `Dim` declarations missing `As` (variable type).
+    *   **Block Structure**: Validates missing closing statements (e.g., `If` without `End If`, `Sub` without `End Sub`) and mismatched blocks.
+*   **Formatting**:
+    *   Basic document formatting (indentation) based on block structure.
+*   **Document Symbols**: Outline of Subs, Functions, Classes, Modules, and Variables.
 
 ## Installation
 
