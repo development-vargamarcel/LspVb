@@ -37,102 +37,37 @@ let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 
 // Define keyword documentation map
-const KEYWORDS: Record<string, { detail: string; documentation: string; kind: CompletionItemKind }> = {
-    'Dim': {
-        detail: 'Dim keyword',
-        documentation: 'Declares and allocates storage space for one or more variables.',
-        kind: CompletionItemKind.Keyword
-    },
-    'If': {
-        detail: 'If keyword',
-        documentation: 'Conditionally executes a group of statements, depending on the value of an expression.',
-        kind: CompletionItemKind.Keyword
-    },
-    'Then': {
-        detail: 'Then keyword',
-        documentation: 'Introduces a statement block to be compiled or executed.',
-        kind: CompletionItemKind.Keyword
-    },
-    'Else': {
-        detail: 'Else keyword',
-        documentation: 'Introduces a statement block to be compiled or executed if the condition is False.',
-        kind: CompletionItemKind.Keyword
-    },
-    'End If': {
-        detail: 'End If keyword',
-        documentation: 'Ends an If...Then...Else block.',
-        kind: CompletionItemKind.Keyword
-    },
-    'Sub': {
-        detail: 'Sub keyword',
-        documentation: 'Declares the name, parameters, and code that define a Sub procedure.',
-        kind: CompletionItemKind.Keyword
-    },
-    'Function': {
-        detail: 'Function keyword',
-        documentation: 'Declares the name, parameters, and code that define a Function procedure.',
-        kind: CompletionItemKind.Keyword
-    },
-    'End Sub': {
-        detail: 'End Sub keyword',
-        documentation: 'Terminates the definition of this procedure.',
-        kind: CompletionItemKind.Keyword
-    },
-    'End Function': {
-        detail: 'End Function keyword',
-        documentation: 'Terminates the definition of this procedure.',
-        kind: CompletionItemKind.Keyword
-    },
-    'For': {
-        detail: 'For keyword',
-        documentation: 'Repeats a group of statements a specified number of times.',
-        kind: CompletionItemKind.Keyword
-    },
-    'Next': {
-        detail: 'Next keyword',
-        documentation: 'Ends a For...Next loop.',
-        kind: CompletionItemKind.Keyword
-    },
-    'While': {
-        detail: 'While keyword',
-        documentation: 'Executes a series of statements as long as a given condition is True.',
-        kind: CompletionItemKind.Keyword
-    },
-    'Wend': {
-        detail: 'Wend keyword',
-        documentation: 'Ends a While...Wend loop.',
-        kind: CompletionItemKind.Keyword
-    },
-    'Do': {
-        detail: 'Do keyword',
-        documentation: 'Repeats a block of statements while a Boolean condition is True or until the condition becomes True.',
-        kind: CompletionItemKind.Keyword
-    },
-    'Loop': {
-        detail: 'Loop keyword',
-        documentation: 'Ends a Do...Loop.',
-        kind: CompletionItemKind.Keyword
-    },
-    'As': {
-        detail: 'As keyword',
-        documentation: 'Used in a Dim, ReDim, Static, Private, Public, or Const statement to declare the data type of a variable.',
-        kind: CompletionItemKind.Keyword
-    },
-    'Integer': {
-        detail: 'Integer data type',
-        documentation: 'Holds signed 32-bit (4-byte) integers ranging in value from -2,147,483,648 through 2,147,483,647.',
-        kind: CompletionItemKind.Class
-    },
-    'String': {
-        detail: 'String data type',
-        documentation: 'Holds sequences of unsigned 16-bit (2-byte) code points ranging in value from 0 through 65535.',
-        kind: CompletionItemKind.Class
-    },
-    'Boolean': {
-        detail: 'Boolean data type',
-        documentation: 'Holds values that can be only True or False.',
-        kind: CompletionItemKind.Class
-    }
+const KEYWORDS: Record<string, { label: string; detail: string; documentation: string; kind: CompletionItemKind }> = {
+    'dim': { label: 'Dim', detail: 'Dim keyword', documentation: 'Declares and allocates storage space for one or more variables.', kind: CompletionItemKind.Keyword },
+    'if': { label: 'If', detail: 'If keyword', documentation: 'Conditionally executes a group of statements, depending on the value of an expression.', kind: CompletionItemKind.Keyword },
+    'then': { label: 'Then', detail: 'Then keyword', documentation: 'Introduces a statement block to be compiled or executed.', kind: CompletionItemKind.Keyword },
+    'else': { label: 'Else', detail: 'Else keyword', documentation: 'Introduces a statement block to be compiled or executed if the condition is False.', kind: CompletionItemKind.Keyword },
+    'end if': { label: 'End If', detail: 'End If keyword', documentation: 'Ends an If...Then...Else block.', kind: CompletionItemKind.Keyword },
+    'sub': { label: 'Sub', detail: 'Sub keyword', documentation: 'Declares the name, parameters, and code that define a Sub procedure.', kind: CompletionItemKind.Keyword },
+    'function': { label: 'Function', detail: 'Function keyword', documentation: 'Declares the name, parameters, and code that define a Function procedure.', kind: CompletionItemKind.Keyword },
+    'end sub': { label: 'End Sub', detail: 'End Sub keyword', documentation: 'Terminates the definition of this procedure.', kind: CompletionItemKind.Keyword },
+    'end function': { label: 'End Function', detail: 'End Function keyword', documentation: 'Terminates the definition of this procedure.', kind: CompletionItemKind.Keyword },
+    'for': { label: 'For', detail: 'For keyword', documentation: 'Repeats a group of statements a specified number of times.', kind: CompletionItemKind.Keyword },
+    'next': { label: 'Next', detail: 'Next keyword', documentation: 'Ends a For...Next loop.', kind: CompletionItemKind.Keyword },
+    'while': { label: 'While', detail: 'While keyword', documentation: 'Executes a series of statements as long as a given condition is True.', kind: CompletionItemKind.Keyword },
+    'wend': { label: 'Wend', detail: 'Wend keyword', documentation: 'Ends a While...Wend loop.', kind: CompletionItemKind.Keyword },
+    'do': { label: 'Do', detail: 'Do keyword', documentation: 'Repeats a block of statements while a Boolean condition is True or until the condition becomes True.', kind: CompletionItemKind.Keyword },
+    'loop': { label: 'Loop', detail: 'Loop keyword', documentation: 'Ends a Do...Loop.', kind: CompletionItemKind.Keyword },
+    'as': { label: 'As', detail: 'As keyword', documentation: 'Used in a Dim, ReDim, Static, Private, Public, or Const statement to declare the data type of a variable.', kind: CompletionItemKind.Keyword },
+    'integer': { label: 'Integer', detail: 'Integer data type', documentation: 'Holds signed 32-bit (4-byte) integers ranging in value from -2,147,483,648 through 2,147,483,647.', kind: CompletionItemKind.Class },
+    'string': { label: 'String', detail: 'String data type', documentation: 'Holds sequences of unsigned 16-bit (2-byte) code points ranging in value from 0 through 65535.', kind: CompletionItemKind.Class },
+    'boolean': { label: 'Boolean', detail: 'Boolean data type', documentation: 'Holds values that can be only True or False.', kind: CompletionItemKind.Class },
+    'double': { label: 'Double', detail: 'Double data type', documentation: 'Holds signed IEEE 64-bit (8-byte) double-precision floating-point numbers.', kind: CompletionItemKind.Class },
+    'date': { label: 'Date', detail: 'Date data type', documentation: 'Holds IEEE 64-bit (8-byte) values that represent dates ranging from January 1 of the year 0001 through December 31 of the year 9999.', kind: CompletionItemKind.Class },
+    'long': { label: 'Long', detail: 'Long data type', documentation: 'Holds signed 64-bit (8-byte) integers ranging in value from -9,223,372,036,854,775,808 through 9,223,372,036,854,775,807.', kind: CompletionItemKind.Class },
+    'byte': { label: 'Byte', detail: 'Byte data type', documentation: 'Holds unsigned 8-bit (1-byte) integers ranging in value from 0 through 255.', kind: CompletionItemKind.Class },
+    'object': { label: 'Object', detail: 'Object data type', documentation: 'Points to any object.', kind: CompletionItemKind.Class },
+    'public': { label: 'Public', detail: 'Public keyword', documentation: 'Specifies that one or more declared programming elements have no access restrictions.', kind: CompletionItemKind.Keyword },
+    'private': { label: 'Private', detail: 'Private keyword', documentation: 'Specifies that one or more declared programming elements are accessible only from within their declaration context.', kind: CompletionItemKind.Keyword },
+    'const': { label: 'Const', detail: 'Const keyword', documentation: 'Declares and defines one or more constants.', kind: CompletionItemKind.Keyword },
+    'true': { label: 'True', detail: 'True literal', documentation: 'Represents a Boolean value.', kind: CompletionItemKind.Keyword },
+    'false': { label: 'False', detail: 'False literal', documentation: 'Represents a Boolean value.', kind: CompletionItemKind.Keyword },
+    'new': { label: 'New', detail: 'New keyword', documentation: 'Creates a new object instance.', kind: CompletionItemKind.Keyword }
 };
 
 connection.onInitialize((params: InitializeParams) => {
@@ -237,6 +172,22 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
         diagnostics.push(diagnostic);
     }
 
+    // Check for Const declaration without initialization
+    // Matches "Const Name [As Type]" with nothing else (no = Value)
+    const constRegex = /^\s*(?:(Public|Private|Friend|Protected)\s+)?Const\s+(\w+)(?:\s+As\s+(\w+))?\s*(?:'.*)?$/gmi;
+    while ((m = constRegex.exec(text))) {
+        const diagnostic: Diagnostic = {
+            severity: DiagnosticSeverity.Error,
+            range: {
+                start: textDocument.positionAt(m.index),
+                end: textDocument.positionAt(m.index + m[0].length)
+            },
+            message: "Const declaration requires a value (e.g. Const x = 1).",
+            source: 'SimpleVB'
+        };
+        diagnostics.push(diagnostic);
+    }
+
 	// Send the computed diagnostics to VSCode.
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
@@ -251,11 +202,12 @@ connection.onCompletion(
 	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
 		// Generate completion items from KEYWORDS map
         const items: CompletionItem[] = [];
-        for (const label in KEYWORDS) {
+        for (const key in KEYWORDS) {
+            const val = KEYWORDS[key];
             items.push({
-                label: label,
-                kind: KEYWORDS[label].kind,
-                data: label // Store the label as data to lookup in resolve
+                label: val.label,
+                kind: val.kind,
+                data: key // Store the lowercase key as data to lookup in resolve
             });
         }
         return items;
@@ -303,14 +255,10 @@ connection.onHover((params: HoverParams): Hover | null => {
     }
 
     const word = text.substring(start, end);
+    const lowerWord = word.toLowerCase();
 
     // Check if the word is in our KEYWORDS map
-    let keywordData = KEYWORDS[word];
-    if (!keywordData) {
-        // Try PascalCase
-        const pascal = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-        keywordData = KEYWORDS[pascal];
-    }
+    let keywordData = KEYWORDS[lowerWord];
 
     if (keywordData) {
         return {
