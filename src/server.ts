@@ -93,24 +93,30 @@ connection.onInitialized(() => {
 	}
 });
 
-// Debounce timer for validation
-let validationTimer: NodeJS.Timeout;
+// Debounce timer for validation per document
+const validationTimers: Map<string, NodeJS.Timeout> = new Map();
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
     // Robustness: Debounce validation to prevent excessive processing on every keystroke
-    if (validationTimer) {
-        clearTimeout(validationTimer);
+    const uri = change.document.uri;
+    if (validationTimers.has(uri)) {
+        clearTimeout(validationTimers.get(uri)!);
     }
-    validationTimer = setTimeout(() => {
+
+    const timer = setTimeout(() => {
         try {
             const diagnostics = validateTextDocument(change.document);
             connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
         } catch (error) {
             connection.console.error(`Validation failed: ${error}`);
+        } finally {
+            validationTimers.delete(uri);
         }
     }, 200); // 200ms delay
+
+    validationTimers.set(uri, timer);
 });
 
 connection.onDidChangeWatchedFiles(_change => {
@@ -157,15 +163,7 @@ connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] => 
     const document = documents.get(params.textDocument.uri);
     if (!document) return [];
     try {
-        // Adapt MySymbol to DocumentSymbol
-        const mySymbols = parseDocumentSymbols(document);
-        return mySymbols.map(s => ({
-            name: s.name,
-            kind: s.kind,
-            range: s.range,
-            selectionRange: s.selectionRange,
-            detail: s.detail
-        }));
+        return parseDocumentSymbols(document);
     } catch (error) {
         connection.console.error(`DocumentSymbol failed: ${error}`);
         return [];

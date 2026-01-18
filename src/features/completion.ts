@@ -1,4 +1,4 @@
-import { CompletionItem, CompletionItemKind, TextDocumentPositionParams } from 'vscode-languageserver/node';
+import { CompletionItem, CompletionItemKind, TextDocumentPositionParams, SymbolKind } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { KEYWORDS } from '../keywords';
 import { parseDocumentSymbols } from '../utils/parser';
@@ -21,14 +21,14 @@ export function onCompletion(params: TextDocumentPositionParams, document: TextD
     for (const sym of symbols) {
         // Convert SymbolKind to CompletionItemKind
         let kind: CompletionItemKind = CompletionItemKind.Text;
-        switch (sym.kind as any) {
-            case 6: kind = CompletionItemKind.Method; break; // Method
-            case 12: kind = CompletionItemKind.Function; break; // Function
-            case 5: kind = CompletionItemKind.Class; break; // Class
-            case 2: kind = CompletionItemKind.Module; break; // Module
-            case 13: kind = CompletionItemKind.Variable; break; // Variable
-            case 14: kind = CompletionItemKind.Constant; break; // Constant
-            case 8: kind = CompletionItemKind.Field; break; // Field
+        switch (sym.kind) {
+            case SymbolKind.Method: kind = CompletionItemKind.Method; break;
+            case SymbolKind.Function: kind = CompletionItemKind.Function; break;
+            case SymbolKind.Class: kind = CompletionItemKind.Class; break;
+            case SymbolKind.Module: kind = CompletionItemKind.Module; break;
+            case SymbolKind.Variable: kind = CompletionItemKind.Variable; break;
+            case SymbolKind.Constant: kind = CompletionItemKind.Constant; break;
+            case SymbolKind.Field: kind = CompletionItemKind.Field; break;
         }
 
         items.push({
