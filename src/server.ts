@@ -6,7 +6,6 @@ import {
 	DidChangeConfigurationNotification,
 	CompletionItem,
 	TextDocumentPositionParams,
-	TextDocumentSyncKind,
 	InitializeResult,
     Hover,
     HoverParams,
@@ -33,6 +32,7 @@ import { formatDocument } from './features/formatting';
 import { Logger } from './utils/logger';
 import { ValidationScheduler } from './utils/scheduler';
 import { safeHandler } from './utils/safeHandler';
+import { SERVER_CAPABILITIES } from './server-capabilities';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -49,6 +49,7 @@ let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 
 connection.onInitialize((params: InitializeParams) => {
+    Logger.log('Initializing SimpleVB Language Server...');
 	const capabilities = params.capabilities;
 
 	// Does the client support the `workspace/configuration` request?
@@ -61,31 +62,14 @@ connection.onInitialize((params: InitializeParams) => {
 	);
 
 	const result: InitializeResult = {
-		capabilities: {
-			textDocumentSync: TextDocumentSyncKind.Incremental,
-			// Tell the client that this server supports code completion.
-			completionProvider: {
-				resolveProvider: true
-			},
-            // Advertise capabilities
-            hoverProvider: true,
-            documentSymbolProvider: true,
-            foldingRangeProvider: true,
-            definitionProvider: true,
-            documentFormattingProvider: true
-		}
+		capabilities: SERVER_CAPABILITIES
 	};
-	if (hasWorkspaceFolderCapability) {
-		result.capabilities.workspace = {
-			workspaceFolders: {
-				supported: true
-			}
-		};
-	}
+
 	return result;
 });
 
 connection.onInitialized(() => {
+    Logger.log('Server initialized.');
 	if (hasConfigurationCapability) {
 		// Register for all configuration changes.
 		connection.client.register(DidChangeConfigurationNotification.type, undefined);
@@ -113,6 +97,7 @@ connection.onCompletion(
 	safeHandler((params: TextDocumentPositionParams): CompletionItem[] => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return [];
+        Logger.log(`Completion requested at ${params.textDocument.uri}:${params.position.line}`);
         return onCompletion(params, document);
     }, [], 'Completion')
 );
@@ -166,6 +151,7 @@ connection.onDocumentFormatting(
     safeHandler((params: DocumentFormattingParams): TextEdit[] => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return [];
+        Logger.log(`Formatting requested for ${params.textDocument.uri}`);
         return formatDocument(document, params.options);
     }, [], 'Formatting')
 );

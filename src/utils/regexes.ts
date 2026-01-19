@@ -32,3 +32,8 @@ export const VAL_CONST_REGEX = new RegExp(`^\\s*(?:(${MODIFIER_PATTERN})\\s+)?Co
 
 export const VAL_IF_LINE_REGEX = /^\s*If\s+.*$/i;
 export const VAL_THEN_REGEX = /\bThen\b/i;
+
+// For Formatting (Additional)
+export const FMT_IF_THEN_START_REGEX = /^\s*If\b.*\bThen\s*(?:'.*)?$/i;
+export const FMT_ELSE_REGEX = /^\s*Else(?:If)?\b/i;
+export const FMT_CASE_REGEX = /^\s*Case\b/i;
