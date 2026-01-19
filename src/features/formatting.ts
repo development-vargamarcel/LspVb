@@ -8,7 +8,10 @@ import {
     VAL_BLOCK_END_REGEX,
     VAL_NEXT_REGEX,
     VAL_LOOP_REGEX,
-    VAL_WEND_REGEX
+    VAL_WEND_REGEX,
+    FMT_IF_THEN_START_REGEX,
+    FMT_ELSE_REGEX,
+    FMT_CASE_REGEX
 } from '../utils/regexes';
 
 export function formatDocument(document: TextDocument, options: FormattingOptions): TextEdit[] {
@@ -18,38 +21,67 @@ export function formatDocument(document: TextDocument, options: FormattingOption
 
     let indentLevel = 0;
     const indentString = options.insertSpaces ? ' '.repeat(options.tabSize) : '\t';
-
-    // Regex definitions
-    // We reuse centralized regexes where possible.
-    // Note: VAL_* regexes are case-insensitive and match start of line.
-
-    // Additional Formatting-specific regexes
-    const ifStartRegex = /^\s*If\b.*\bThen\s*(?:'.*)?$/i; // Ends with Then (and optional comment) - Stricter than validation for formatting purposes
-
-    // Middle blocks (dedent for this line, indent for next)
-    const elseRegex = /^\s*Else(?:If)?\b/i;
-    const caseRegex = /^\s*Case\b/i;
+    const selectStack: boolean[] = []; // true = case opened
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const trimmed = line.trim();
 
         if (trimmed === '') {
-            continue; // Skip empty lines or handle them? usually we trim them
+            if (line.length > 0) {
+                 edits.push({
+                    range: Range.create(i, 0, i, line.length),
+                    newText: ''
+                });
+            }
+            continue;
         }
 
         let currentLevel = indentLevel;
+        let isCase = false;
+        let isSelectCase = false;
+        let isEndSelect = false;
 
-        // Check for decrease indent
-        if (VAL_BLOCK_END_REGEX.test(trimmed) ||
-            VAL_NEXT_REGEX.test(trimmed) ||
-            VAL_LOOP_REGEX.test(trimmed) ||
-            VAL_WEND_REGEX.test(trimmed)) {
-            currentLevel--;
-            indentLevel--; // Permanently decrease
+        const blockEndMatch = VAL_BLOCK_END_REGEX.exec(trimmed);
+
+        // 1. DEDENT LOGIC
+
+        // End Select
+        if (blockEndMatch && blockEndMatch[1].toLowerCase() === 'select') {
+            isEndSelect = true;
+            if (selectStack.length > 0) {
+                if (selectStack[selectStack.length - 1]) {
+                    indentLevel--; // Close previous Case
+                }
+                selectStack.pop(); // Close Select
+                indentLevel--; // Dedent Select
+            } else {
+                indentLevel--;
+            }
+            currentLevel = indentLevel;
         }
-        else if (elseRegex.test(trimmed) || caseRegex.test(trimmed)) {
-            currentLevel--; // Temporarily decrease for this line
+        // Other End Blocks
+        else if (blockEndMatch ||
+                 VAL_NEXT_REGEX.test(trimmed) ||
+                 VAL_LOOP_REGEX.test(trimmed) ||
+                 VAL_WEND_REGEX.test(trimmed)) {
+            indentLevel--;
+            currentLevel = indentLevel;
+        }
+        // Case
+        else if (FMT_CASE_REGEX.test(trimmed)) {
+            isCase = true;
+            if (selectStack.length > 0) {
+                if (selectStack[selectStack.length - 1]) {
+                    indentLevel--; // Close previous Case
+                }
+                selectStack[selectStack.length - 1] = true; // Mark Case opened
+            }
+            currentLevel = indentLevel;
+        }
+        // Else
+        else if (FMT_ELSE_REGEX.test(trimmed)) {
+            currentLevel = indentLevel - 1;
         }
 
         if (currentLevel < 0) currentLevel = 0;
@@ -57,55 +89,41 @@ export function formatDocument(document: TextDocument, options: FormattingOption
 
         const desiredIndent = indentString.repeat(currentLevel);
 
-        // If current indentation is different, add edit
-        // We match any leading whitespace and replace it
-        const match = line.match(/^(\s*)/);
-        const currentIndent = match ? match[1] : '';
-
-        if (currentIndent !== desiredIndent || trimmed !== line.trimStart()) { // Also fix trailing whitespace if we replace the whole line?
-            // Safer to just replace the leading whitespace
-            // But wait, if we only replace leading whitespace, we might miss trimming the end?
-            // Let's replace the whole line with desiredIndent + trimmed
-             edits.push({
+        if (line !== desiredIndent + trimmed) {
+            edits.push({
                 range: Range.create(i, 0, i, line.length),
                 newText: desiredIndent + trimmed
             });
         }
 
-        // Check for increase indent for NEXT line
-        if (VAL_BLOCK_START_REGEX.test(trimmed) ||
-            ifStartRegex.test(trimmed) ||
-            VAL_FOR_START_REGEX.test(trimmed) ||
-            VAL_DO_START_REGEX.test(trimmed) ||
-            VAL_SELECT_CASE_START_REGEX.test(trimmed) ||
-            VAL_WHILE_START_REGEX.test(trimmed) ||
-            elseRegex.test(trimmed) ||
-            caseRegex.test(trimmed)
-            ) {
-             // Logic correction: Else/Case dedent for current line but indent for next?
-             // Actually:
-             // If ... Then
-             //   Indent
-             // Else
-             //   Indent
-             // End If
+        // 2. INDENT NEXT LOGIC
 
-             // So 'Else' line itself is at Level-1, but subsequent lines are at Level.
-             // If we handled 'Else' in decrease section (currentLevel--), then indentLevel is still high.
-             // Wait, if indentLevel is 1.
-             // If ... Then -> indentLevel becomes 1.
-             // (next lines at 1)
-             // Else -> We want it at 0. So currentLevel = indentLevel - 1.
-             // But subsequent lines should be at 1. So indentLevel remains 1.
-             // So we do NOT increase indentLevel for Else.
-
-             if (elseRegex.test(trimmed) || caseRegex.test(trimmed)) {
-                 // Do nothing to indentLevel, it stays high.
-             } else {
-                 indentLevel++;
-             }
+        // Select Case
+        if (VAL_SELECT_CASE_START_REGEX.test(trimmed)) {
+            isSelectCase = true;
+            indentLevel++;
+            selectStack.push(false);
+        }
+        // Case
+        else if (isCase) {
+             indentLevel++;
+        }
+        // Other Blocks
+        else if (shouldIndentNext(trimmed)) {
+            indentLevel++;
         }
     }
 
     return edits;
+}
+
+function shouldIndentNext(line: string): boolean {
+    // Blocks that increase indentation (Excluding Select Case which is handled manually)
+    if (VAL_SELECT_CASE_START_REGEX.test(line)) return false;
+
+    return VAL_BLOCK_START_REGEX.test(line) ||
+        FMT_IF_THEN_START_REGEX.test(line) ||
+        VAL_FOR_START_REGEX.test(line) ||
+        VAL_DO_START_REGEX.test(line) ||
+        VAL_WHILE_START_REGEX.test(line);
 }

@@ -11,13 +11,15 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Document Symbols**: Outline view support for Sub, Function, Class, Module, Constants, and Variables.
 - **Hover Information**: Basic hover support for keywords and user-defined symbols.
 - **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.).
-- **Formatting**: Basic indentation adjustment.
+- **Formatting**: Auto-formatting support for indentation of blocks and nested structures.
 
 ## Architecture
 
 - **`src/server.ts`**: Main entry point. Handles LSP connection and event delegation. Uses a `ValidationScheduler` for debounced validation.
 - **`src/features/`**: Contains individual feature implementations (completion, validation, etc.).
-    - `validation.ts`: Implements a stack-based validator for block structures and regex-based line checks.
+    - `validation.ts`: Implements a `Validator` class with stack-based logic for block structures and regex-based line checks.
+    - `formatting.ts`: Handles document indentation using rule-based logic.
+    - `completion.ts`: Provides completions and snippets.
 - **`src/utils/`**: Helper utilities.
     - `parser.ts`: Regex-based parser for symbol extraction.
     - `regexes.ts`: Centralized regex definitions for consistency.
