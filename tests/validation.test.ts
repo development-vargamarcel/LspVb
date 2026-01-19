@@ -1,61 +1,154 @@
-import * as assert from 'assert';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import { expect } from 'chai';
 import { validateTextDocument } from '../src/features/validation';
+import { TextDocument } from 'vscode-languageserver-textdocument';
+
+function createDoc(content: string): TextDocument {
+    return TextDocument.create('test://test.vb', 'vb', 1, content);
+}
 
 describe('Validation Tests', () => {
     it('should detect missing End Sub', () => {
-        const content = 'Sub Test\n    Dim x As Integer';
-        const doc = TextDocument.create('file:///test.vb', 'vb', 1, content);
+        const doc = createDoc(`
+Sub Test()
+    Dim x As Integer
+`);
         const diagnostics = validateTextDocument(doc);
-
-        const missingEnd = diagnostics.find(d => d.message.includes("Missing closing statement for 'Sub'"));
-        assert.ok(missingEnd, 'Should report missing End Sub');
+        expect(diagnostics).to.have.lengthOf(1);
+        expect(diagnostics[0].message).to.contain('Missing closing statement');
     });
 
     it('should detect missing Then in If', () => {
-        const content = 'If x = 1\nEnd If';
-        const doc = TextDocument.create('file:///test.vb', 'vb', 1, content);
+        const doc = createDoc(`
+Sub Test()
+    If x = 1
+        x = 2
+    End If
+End Sub
+`);
         const diagnostics = validateTextDocument(doc);
-
-        const missingThen = diagnostics.find(d => d.message.includes("Missing 'Then'"));
-        assert.ok(missingThen, 'Should report missing Then');
+        expect(diagnostics.some(d => d.message.includes("Missing 'Then'"))).to.be.true;
     });
 
     it('should detect Dim without As', () => {
-        const content = 'Dim x';
-        const doc = TextDocument.create('file:///test.vb', 'vb', 1, content);
+        const doc = createDoc(`
+Sub Test()
+    Dim x
+End Sub
+`);
         const diagnostics = validateTextDocument(doc);
-
-        const warning = diagnostics.find(d => d.message.includes("Variable declaration without type"));
-        assert.ok(warning, 'Should warn about Dim without As');
+        expect(diagnostics.some(d => d.message.includes("Variable declaration without type"))).to.be.true;
     });
 
     it('should not report error for valid If...Then', () => {
-        const content = 'If x = 1 Then\n    x = 2\nEnd If';
-        const doc = TextDocument.create('file:///test.vb', 'vb', 1, content);
+        const doc = createDoc(`
+Sub Test()
+    If x = 1 Then
+        x = 2
+    End If
+End Sub
+`);
         const diagnostics = validateTextDocument(doc);
-
-        const error = diagnostics.find(d => d.severity === 1); // Error
-        assert.strictEqual(error, undefined, 'Should have no errors');
+        expect(diagnostics).to.have.lengthOf(0);
     });
 
     it('should not report error for valid Single Line If', () => {
-        const content = 'If x = 1 Then x = 2';
-        const doc = TextDocument.create('file:///test.vb', 'vb', 1, content);
+        const doc = createDoc(`
+Sub Test()
+    If x = 1 Then x = 2
+End Sub
+`);
         const diagnostics = validateTextDocument(doc);
-
-        const error = diagnostics.find(d => d.severity === 1);
-        assert.strictEqual(error, undefined, 'Should have no errors');
+        expect(diagnostics).to.have.lengthOf(0);
     });
 
-     it('should detect mismatched blocks', () => {
-        const content = 'Sub Test\n    If x = 1 Then\n    End Sub\nEnd If';
-        const doc = TextDocument.create('file:///test.vb', 'vb', 1, content);
+    it('should detect mismatched blocks', () => {
+        const doc = createDoc(`
+Sub Test()
+    If x = 1 Then
+    End Sub
+`);
         const diagnostics = validateTextDocument(doc);
+        expect(diagnostics).to.not.be.empty;
+        expect(diagnostics[0].message).to.contain('Mismatched block');
+    });
 
-        // This is tricky because the stack logic might report multiple things.
-        // It should report "Expected closing for 'If', but found 'End Sub'"
-        const mismatch = diagnostics.find(d => d.message.includes("Mismatched block"));
-        assert.ok(mismatch, 'Should report mismatched block');
+    it('should handle nested blocks correctly', () => {
+        const doc = createDoc(`
+Sub Test()
+    If x = 1 Then
+        For i = 1 To 10
+            x = x + 1
+        Next
+    End If
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        expect(diagnostics).to.have.lengthOf(0);
+    });
+
+    it('should handle Select Case blocks', () => {
+        const doc = createDoc(`
+Sub Test()
+    Select Case x
+        Case 1
+            x = 2
+        Case Else
+            x = 3
+    End Select
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        expect(diagnostics).to.have.lengthOf(0);
+    });
+
+    it('should handle Do Loop blocks', () => {
+        const doc = createDoc(`
+Sub Test()
+    Do
+        x = x + 1
+    Loop
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        expect(diagnostics).to.have.lengthOf(0);
+    });
+
+    it('should ignore comments in validation', () => {
+        const doc = createDoc(`
+Sub Test() ' Start of Sub
+    If x = 1 Then ' check condition
+        x = 2
+    End If ' end if
+End Sub ' End of Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        expect(diagnostics).to.have.lengthOf(0);
+    });
+
+    it('should handle While Wend blocks', () => {
+        const doc = createDoc(`
+Sub Test()
+    While x < 10
+        x = x + 1
+    Wend
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        expect(diagnostics).to.have.lengthOf(0);
+    });
+
+    it('should detect unclosed nested block', () => {
+        const doc = createDoc(`
+Sub Test()
+    If x = 1 Then
+        For i = 1 To 10
+            x = x + 1
+    End If
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        expect(diagnostics).to.not.be.empty;
+        // It should complain about Next missing or mismatched End If
+        expect(diagnostics[0].message).to.contain('Mismatched block');
     });
 });

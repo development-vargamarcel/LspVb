@@ -24,7 +24,6 @@ import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
 
-import { validateTextDocument } from './features/validation';
 import { onCompletion, onCompletionResolve } from './features/completion';
 import { onHover } from './features/hover';
 import { onFoldingRanges } from './features/folding';
@@ -32,6 +31,8 @@ import { onDefinition } from './features/definition';
 import { parseDocumentSymbols } from './utils/parser';
 import { formatDocument } from './features/formatting';
 import { Logger } from './utils/logger';
+import { ValidationScheduler } from './utils/scheduler';
+import { safeHandler } from './utils/safeHandler';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -40,6 +41,9 @@ Logger.setConnection(connection);
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+
+// Validation Scheduler
+const validationScheduler = new ValidationScheduler(connection);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
@@ -93,30 +97,10 @@ connection.onInitialized(() => {
 	}
 });
 
-// Debounce timer for validation per document
-const validationTimers: Map<string, NodeJS.Timeout> = new Map();
-
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
-    // Robustness: Debounce validation to prevent excessive processing on every keystroke
-    const uri = change.document.uri;
-    if (validationTimers.has(uri)) {
-        clearTimeout(validationTimers.get(uri)!);
-    }
-
-    const timer = setTimeout(() => {
-        try {
-            const diagnostics = validateTextDocument(change.document);
-            connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
-        } catch (error) {
-            Logger.error(`Validation failed: ${error}`);
-        } finally {
-            validationTimers.delete(uri);
-        }
-    }, 200); // 200ms delay
-
-    validationTimers.set(uri, timer);
+    validationScheduler.scheduleValidation(change.document);
 });
 
 connection.onDidChangeWatchedFiles(_change => {
@@ -126,85 +110,65 @@ connection.onDidChangeWatchedFiles(_change => {
 
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
-	(params: TextDocumentPositionParams): CompletionItem[] => {
+	safeHandler((params: TextDocumentPositionParams): CompletionItem[] => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return [];
-        try {
-            return onCompletion(params, document);
-        } catch (error) {
-            Logger.error(`Completion failed: ${error}`);
-            return [];
-        }
-	}
+        return onCompletion(params, document);
+    }, [], 'Completion')
 );
 
 // This handler resolves additional information for the item selected in
 // the completion list.
 connection.onCompletionResolve(
-	(item: CompletionItem): CompletionItem => {
+	safeHandler((item: CompletionItem): CompletionItem => {
         return onCompletionResolve(item);
-	}
+	}, {} as CompletionItem, 'CompletionResolve')
 );
 
 // This handler provides hover information.
-connection.onHover((params: HoverParams): Hover | null => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) return null;
-    try {
+connection.onHover(
+    safeHandler((params: HoverParams): Hover | null => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return null;
         return onHover(params, document);
-    } catch (error) {
-        Logger.error(`Hover failed: ${error}`);
-        return null;
-    }
-});
+    }, null, 'Hover')
+);
 
 // This handler provides document symbols (outline)
-connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) return [];
-    try {
+connection.onDocumentSymbol(
+    safeHandler((params: DocumentSymbolParams): DocumentSymbol[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
         return parseDocumentSymbols(document);
-    } catch (error) {
-        Logger.error(`DocumentSymbol failed: ${error}`);
-        return [];
-    }
-});
+    }, [], 'DocumentSymbol')
+);
 
 // This handler provides folding ranges
-connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) return [];
-    try {
+connection.onFoldingRanges(
+    safeHandler((params: FoldingRangeParams): FoldingRange[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
         return onFoldingRanges(params, document);
-    } catch (error) {
-        Logger.error(`FoldingRanges failed: ${error}`);
-        return [];
-    }
-});
+    }, [], 'FoldingRanges')
+);
 
 // This handler provides definition lookup
-connection.onDefinition((params: DefinitionParams): Definition | null => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) return null;
-    try {
+connection.onDefinition(
+    safeHandler((params: DefinitionParams): Definition | null => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return null;
         return onDefinition(params, document);
-    } catch (error) {
-        Logger.error(`Definition failed: ${error}`);
-        return null;
-    }
-});
+    }, null, 'Definition')
+);
 
 // This handler provides formatting
-connection.onDocumentFormatting((params: DocumentFormattingParams): TextEdit[] => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) return [];
-    try {
+connection.onDocumentFormatting(
+    safeHandler((params: DocumentFormattingParams): TextEdit[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
         return formatDocument(document, params.options);
-    } catch (error) {
-        Logger.error(`Formatting failed: ${error}`);
-        return [];
-    }
-});
+    }, [], 'Formatting')
+);
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
