@@ -1,5 +1,16 @@
 import { FoldingRange, FoldingRangeParams } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import {
+    FOLD_BLOCK_END_REGEX,
+    FOLD_NEXT_REGEX,
+    FOLD_WEND_REGEX,
+    FOLD_LOOP_REGEX,
+    FOLD_BLOCK_START_REGEX,
+    FOLD_IF_START_REGEX,
+    FOLD_FOR_START_REGEX,
+    FOLD_WHILE_START_REGEX,
+    FOLD_DO_START_REGEX
+} from '../utils/regexes';
 
 export function onFoldingRanges(params: FoldingRangeParams, document: TextDocument): FoldingRange[] {
     const text = document.getText();
@@ -15,10 +26,10 @@ export function onFoldingRanges(params: FoldingRangeParams, document: TextDocume
 
         // Check for block ends
         let endMatch = false;
-        if (/^End\s+(Sub|Function|If|Class|Module)/i.test(line)) endMatch = true;
-        else if (/^Next(\s+|$)/i.test(line)) endMatch = true;
-        else if (/^Wend(\s+|$)/i.test(line)) endMatch = true;
-        else if (/^Loop(\s+|$)/i.test(line)) endMatch = true;
+        if (FOLD_BLOCK_END_REGEX.test(line)) endMatch = true;
+        else if (FOLD_NEXT_REGEX.test(line)) endMatch = true;
+        else if (FOLD_WEND_REGEX.test(line)) endMatch = true;
+        else if (FOLD_LOOP_REGEX.test(line)) endMatch = true;
 
         if (endMatch) {
             if (stack.length > 0) {
@@ -39,16 +50,16 @@ export function onFoldingRanges(params: FoldingRangeParams, document: TextDocume
         // Check for block starts
         let startType: string | null = null;
 
-        if (/^(?:(Public|Private|Friend|Protected)\s+)?(Sub|Function|Class|Module)\b/i.test(line)) {
+        if (FOLD_BLOCK_START_REGEX.test(line)) {
             startType = 'block';
-        } else if (/^If\b.*?\bThen\s*$/i.test(line)) {
+        } else if (FOLD_IF_START_REGEX.test(line)) {
              // Block If check: If ... Then (and nothing else on line)
              startType = 'if';
-        } else if (/^For\b/i.test(line)) {
+        } else if (FOLD_FOR_START_REGEX.test(line)) {
              startType = 'for';
-        } else if (/^While\b/i.test(line)) {
+        } else if (FOLD_WHILE_START_REGEX.test(line)) {
              startType = 'while';
-        } else if (/^Do\b/i.test(line)) {
+        } else if (FOLD_DO_START_REGEX.test(line)) {
              startType = 'do';
         }
 

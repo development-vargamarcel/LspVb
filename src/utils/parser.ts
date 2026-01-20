@@ -1,5 +1,12 @@
-import { DocumentSymbol, SymbolKind, Range } from 'vscode-languageserver/node';
+import { DocumentSymbol, SymbolKind } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import {
+    PARSER_BLOCK_REGEX,
+    PARSER_DIM_REGEX,
+    PARSER_CONST_REGEX,
+    PARSER_FIELD_REGEX,
+    VAL_BLOCK_END_REGEX
+} from '../utils/regexes';
 
 export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
     const text = document.getText();
@@ -28,7 +35,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         if (!trimmed) continue;
 
         // 1. Check for Block End (End Sub, End Class, etc.)
-        const endMatch = /^\s*End\s+(Sub|Function|Class|Module|Property)\b/i.exec(trimmed);
+        const endMatch = VAL_BLOCK_END_REGEX.exec(trimmed);
         if (endMatch) {
             if (stack.length > 0) {
                 const finishedSymbol = stack.pop();
@@ -42,7 +49,18 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
 
         // 2. Check for Block Start (Sub, Function, Class, Module)
         // Groups: 1=Modifier, 2=Type, 3=Name
-        const blockMatch = /^\s*(?:(Public|Private|Friend|Protected)\s+)?(Sub|Function|Class|Module|Property)\s+(\w+)/i.exec(trimmed);
+        // Note: PARSER_BLOCK_REGEX is global/multiline, so we need to reset lastIndex or use exec on the string
+        // Since we are iterating lines, we should use a fresh regex or match against the line.
+        // The PARSER_BLOCK_REGEX in regexes.ts was defined with flags 'gmi'.
+        // Using it with exec() on a single line loop can be tricky with 'g'.
+        // Let's rely on simple line matching here instead of the exported 'g' regex for safety in this loop structure,
+        // OR construct a new RegExp from the source.
+
+        // Actually, looking at the previous implementation, it used `exec` on the line.
+        // Let's create a local regex for single line match based on the pattern.
+
+        const blockMatch = new RegExp(PARSER_BLOCK_REGEX.source, 'i').exec(trimmed);
+
         if (blockMatch) {
             const type = blockMatch[2]; // Sub, Function...
             const name = blockMatch[3];
@@ -75,7 +93,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
 
         // 3. Check for Dim (Variables)
         // Groups: 1=Name, 2=Type (optional)
-        const dimMatch = /^\s*Dim\s+(\w+)(?:.*?As\s+(\w+))?/i.exec(trimmed);
+        const dimMatch = new RegExp(PARSER_DIM_REGEX.source, 'i').exec(trimmed);
         if (dimMatch) {
             const name = dimMatch[1];
             const type = dimMatch[2] || 'Object';
@@ -99,10 +117,10 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         }
 
         // 4. Check for Const
-        const constMatch = /^\s*(?:(?:Public|Private|Friend|Protected)\s+)?Const\s+(\w+)(?:.*?As\s+(\w+))?/i.exec(trimmed);
+        const constMatch = new RegExp(PARSER_CONST_REGEX.source, 'i').exec(trimmed);
         if (constMatch) {
-            const name = constMatch[1];
-            const type = constMatch[2] || 'Object';
+            const name = constMatch[2]; // Group 2 is name in CONST_PATTERN (1 is modifier)
+            const type = constMatch[3] || 'Object';
 
             const symbol: DocumentSymbol = {
                 name: name,
@@ -124,8 +142,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
 
         // 5. Fields (Module/Class level variables without Dim, usually with modifier)
         // But excluding Sub/Function/Const/Property which are handled above.
-        // Regex: (Modifier) (Name) [As Type]
-        const fieldMatch = /^\s*(Public|Private|Friend|Protected)\s+(\w+)(?:.*?As\s+(\w+))?/i.exec(trimmed);
+        const fieldMatch = new RegExp(PARSER_FIELD_REGEX.source, 'i').exec(trimmed);
         if (fieldMatch) {
             const name = fieldMatch[2];
             // Safety check: ensure it's not a block start or const
