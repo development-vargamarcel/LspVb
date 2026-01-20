@@ -15,6 +15,7 @@ import {
     VAL_IF_LINE_REGEX,
     VAL_THEN_REGEX
 } from '../utils/regexes';
+import { stripComment } from '../utils/textUtils';
 
 interface BlockContext {
     type: string;
@@ -41,7 +42,7 @@ class Validator {
     public validate(): Diagnostic[] {
         for (let i = 0; i < this.lines.length; i++) {
             const rawLine = this.lines[i];
-            const trimmed = this.stripComment(rawLine).trim();
+            const trimmed = stripComment(rawLine).trim();
 
             if (!trimmed) continue;
 
@@ -51,11 +52,6 @@ class Validator {
 
         this.checkUnclosedBlocks();
         return this.diagnostics;
-    }
-
-    private stripComment(line: string): string {
-        const commentIndex = line.indexOf("'");
-        return commentIndex >= 0 ? line.substring(0, commentIndex) : line;
     }
 
     private validateSyntax(trimmed: string, lineIndex: number, rawLine: string) {

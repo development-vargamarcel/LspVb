@@ -151,4 +151,18 @@ End Sub
         // It should complain about Next missing or mismatched End If
         expect(diagnostics[0].message).to.contain('Mismatched block');
     });
+
+    it('should correctly handle quotes containing single quotes', () => {
+        const doc = createDoc(`
+Sub Test()
+    Dim s As String
+    s = "Don't"
+    If s = "Don't" Then
+        x = 2
+    End If
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        expect(diagnostics).to.have.lengthOf(0);
+    });
 });
