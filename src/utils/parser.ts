@@ -1,93 +1,156 @@
-import { DocumentSymbol, SymbolKind } from 'vscode-languageserver/node';
+import { DocumentSymbol, SymbolKind, Range } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import {
-    PARSER_BLOCK_REGEX,
-    PARSER_DIM_REGEX,
-    PARSER_CONST_REGEX,
-    PARSER_FIELD_REGEX
-} from './regexes';
 
-/**
- * Parses the document to extract symbols (variables, functions, subs, classes).
- */
 export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
     const text = document.getText();
-    const symbols: DocumentSymbol[] = [];
+    const lines = text.split(/\r?\n/);
+    const rootSymbols: DocumentSymbol[] = [];
+    const stack: DocumentSymbol[] = [];
 
-    // 1. Blocks (Sub, Function, Class, Module)
-    extractSymbols(text, PARSER_BLOCK_REGEX, (m) => {
-        const type = m[2]; // Sub, Function, Class, Module
-        const name = m[3];
-        let kind: SymbolKind = SymbolKind.Function;
-        if (type === 'Sub') kind = SymbolKind.Method;
-        if (type === 'Class') kind = SymbolKind.Class;
-        if (type === 'Module') kind = SymbolKind.Module;
-        if (type === 'Property') kind = SymbolKind.Property;
-        return { name, kind, detail: type };
-    }, document, symbols);
+    // Helper to add symbol to current parent or root
+    const addSymbol = (symbol: DocumentSymbol) => {
+        if (stack.length > 0) {
+            const parent = stack[stack.length - 1];
+            if (!parent.children) {
+                parent.children = [];
+            }
+            parent.children.push(symbol);
+        } else {
+            rootSymbols.push(symbol);
+        }
+    };
 
-    // 2. Dim Variables
-    extractSymbols(text, PARSER_DIM_REGEX, (m) => {
-        const name = m[1];
-        const type = m[2] || 'Object';
-        return { name, kind: SymbolKind.Variable, detail: `Dim ${name} As ${type}` };
-    }, document, symbols);
+    for (let i = 0; i < lines.length; i++) {
+        const rawLine = lines[i];
+        // Strip comments for analysis
+        const line = rawLine.split("'")[0];
+        const trimmed = line.trim();
+        if (!trimmed) continue;
 
-    // 3. Constants
-    extractSymbols(text, PARSER_CONST_REGEX, (m) => {
-        const name = m[2];
-        const type = m[3] || 'Object';
-        return { name, kind: SymbolKind.Constant, detail: `Const ${name} As ${type}` };
-    }, document, symbols);
+        // 1. Check for Block End (End Sub, End Class, etc.)
+        const endMatch = /^\s*End\s+(Sub|Function|Class|Module|Property)\b/i.exec(trimmed);
+        if (endMatch) {
+            if (stack.length > 0) {
+                const finishedSymbol = stack.pop();
+                if (finishedSymbol) {
+                    // Update range end to include this line
+                    finishedSymbol.range.end = { line: i, character: rawLine.length };
+                }
+            }
+            continue;
+        }
 
-    // 4. Fields (Module/Class level variables)
-    extractSymbols(text, PARSER_FIELD_REGEX, (m) => {
-        const modifier = m[1];
-        const name = m[2];
-        // Safety check to avoid keywords being picked up as fields if regex is too loose
-        if (/^(Sub|Function|Class|Module|Const|Property)$/i.test(name)) return null;
+        // 2. Check for Block Start (Sub, Function, Class, Module)
+        // Groups: 1=Modifier, 2=Type, 3=Name
+        const blockMatch = /^\s*(?:(Public|Private|Friend|Protected)\s+)?(Sub|Function|Class|Module|Property)\s+(\w+)/i.exec(trimmed);
+        if (blockMatch) {
+            const type = blockMatch[2]; // Sub, Function...
+            const name = blockMatch[3];
+            let kind: SymbolKind = SymbolKind.Function;
 
-        const type = m[3] || 'Object';
-        return { name, kind: SymbolKind.Field, detail: `${modifier} ${name} As ${type}` };
-    }, document, symbols);
+            if (/Sub/i.test(type)) kind = SymbolKind.Method;
+            else if (/Class/i.test(type)) kind = SymbolKind.Class;
+            else if (/Module/i.test(type)) kind = SymbolKind.Module;
+            else if (/Property/i.test(type)) kind = SymbolKind.Property;
 
-    return symbols;
-}
+            const symbol: DocumentSymbol = {
+                name: name,
+                kind: kind,
+                detail: type,
+                range: {
+                    start: { line: i, character: 0 },
+                    end: { line: i, character: rawLine.length } // Will be updated on close
+                },
+                selectionRange: {
+                    start: { line: i, character: rawLine.indexOf(name) },
+                    end: { line: i, character: rawLine.indexOf(name) + name.length }
+                },
+                children: []
+            };
 
-function extractSymbols(
-    text: string,
-    regex: RegExp,
-    extractor: (match: RegExpExecArray) => { name: string, kind: SymbolKind, detail: string } | null,
-    document: TextDocument,
-    symbols: DocumentSymbol[]
-) {
-    regex.lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = regex.exec(text))) {
-        const result = extractor(m);
-        if (result) {
-            symbols.push(createSymbol(result.name, result.kind, result.detail, m, document));
+            addSymbol(symbol);
+            stack.push(symbol);
+            continue;
+        }
+
+        // 3. Check for Dim (Variables)
+        // Groups: 1=Name, 2=Type (optional)
+        const dimMatch = /^\s*Dim\s+(\w+)(?:.*?As\s+(\w+))?/i.exec(trimmed);
+        if (dimMatch) {
+            const name = dimMatch[1];
+            const type = dimMatch[2] || 'Object';
+
+            const symbol: DocumentSymbol = {
+                name: name,
+                kind: SymbolKind.Variable,
+                detail: `Dim ${name} As ${type}`,
+                range: {
+                    start: { line: i, character: 0 },
+                    end: { line: i, character: rawLine.length }
+                },
+                selectionRange: {
+                    start: { line: i, character: rawLine.indexOf(name) },
+                    end: { line: i, character: rawLine.indexOf(name) + name.length }
+                },
+                children: []
+            };
+            addSymbol(symbol);
+            continue;
+        }
+
+        // 4. Check for Const
+        const constMatch = /^\s*(?:(?:Public|Private|Friend|Protected)\s+)?Const\s+(\w+)(?:.*?As\s+(\w+))?/i.exec(trimmed);
+        if (constMatch) {
+            const name = constMatch[1];
+            const type = constMatch[2] || 'Object';
+
+            const symbol: DocumentSymbol = {
+                name: name,
+                kind: SymbolKind.Constant,
+                detail: `Const ${name} As ${type}`,
+                range: {
+                    start: { line: i, character: 0 },
+                    end: { line: i, character: rawLine.length }
+                },
+                selectionRange: {
+                    start: { line: i, character: rawLine.indexOf(name) },
+                    end: { line: i, character: rawLine.indexOf(name) + name.length }
+                },
+                children: []
+            };
+            addSymbol(symbol);
+            continue;
+        }
+
+        // 5. Fields (Module/Class level variables without Dim, usually with modifier)
+        // But excluding Sub/Function/Const/Property which are handled above.
+        // Regex: (Modifier) (Name) [As Type]
+        const fieldMatch = /^\s*(Public|Private|Friend|Protected)\s+(\w+)(?:.*?As\s+(\w+))?/i.exec(trimmed);
+        if (fieldMatch) {
+            const name = fieldMatch[2];
+            // Safety check: ensure it's not a block start or const
+            if (/^(Sub|Function|Class|Module|Property|Const)$/i.test(name)) continue;
+
+            const modifier = fieldMatch[1];
+            const type = fieldMatch[3] || 'Object';
+             const symbol: DocumentSymbol = {
+                name: name,
+                kind: SymbolKind.Field,
+                detail: `${modifier} ${name} As ${type}`,
+                range: {
+                    start: { line: i, character: 0 },
+                    end: { line: i, character: rawLine.length }
+                },
+                selectionRange: {
+                    start: { line: i, character: rawLine.indexOf(name) },
+                    end: { line: i, character: rawLine.indexOf(name) + name.length }
+                },
+                children: []
+            };
+            addSymbol(symbol);
+            continue;
         }
     }
-}
 
-function createSymbol(name: string, kind: SymbolKind, detail: string, match: RegExpExecArray, document: TextDocument): DocumentSymbol {
-    const matchStr = match[0];
-    const index = match.index;
-    const nameIndex = matchStr.indexOf(name); // naive finding of name in match string
-
-    return {
-        name: name,
-        kind: kind,
-        range: {
-            start: document.positionAt(index),
-            end: document.positionAt(index + matchStr.length)
-        },
-        selectionRange: {
-            start: document.positionAt(index + nameIndex),
-            end: document.positionAt(index + nameIndex + name.length)
-        },
-        detail: detail,
-        children: []
-    };
+    return rootSymbols;
 }

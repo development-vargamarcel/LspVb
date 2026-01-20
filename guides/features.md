@@ -20,14 +20,15 @@ Real-time error checking for:
     - Unexpected closing statements.
 
 ## 3. Document Outline (Symbols)
-Provides a hierarchical view of the symbols in the file. Supported symbols:
-- Classes
-- Modules
-- Methods (Subs)
-- Functions
-- Properties
-- Variables (Dim)
-- Constants (Const)
+Provides a hierarchical, tree-based view of the symbols in the file.
+- **Hierarchy**: Methods, properties, and fields are nested under their parent Class or Module. Variables are nested under their containing Method.
+- **Supported Symbols**:
+    - Classes / Modules
+    - Methods (Sub, Function)
+    - Properties
+    - Variables (Dim)
+    - Constants (Const)
+    - Fields
 
 ## 4. Formatting
 Automatically formats the document by adjusting indentation.
