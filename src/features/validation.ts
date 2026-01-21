@@ -57,7 +57,7 @@ class Validator {
     private validateSyntax(trimmed: string, lineIndex: number, rawLine: string) {
         // Check for "If ... " without "Then"
         if (VAL_IF_LINE_REGEX.test(rawLine)) {
-            if (!VAL_THEN_REGEX.test(rawLine) && !trimmed.endsWith("_")) {
+            if (!VAL_THEN_REGEX.test(rawLine) && !trimmed.endsWith('_')) {
                 this.addDiagnostic(
                     lineIndex,
                     "Missing 'Then' in If statement.",
@@ -70,16 +70,16 @@ class Validator {
         if (VAL_DIM_REGEX.test(trimmed)) {
             this.addDiagnostic(
                 lineIndex,
-                "Variable declaration without type (As ...).",
+                'Variable declaration without type (As ...).',
                 DiagnosticSeverity.Warning
             );
         }
 
         // Check for Const without value
-        if (VAL_CONST_REGEX.test(rawLine) && !rawLine.includes("=")) {
+        if (VAL_CONST_REGEX.test(rawLine) && !rawLine.includes('=')) {
             this.addDiagnostic(
                 lineIndex,
-                "Const declaration requires a value (e.g. Const x = 1).",
+                'Const declaration requires a value (e.g. Const x = 1).',
                 DiagnosticSeverity.Error
             );
         }

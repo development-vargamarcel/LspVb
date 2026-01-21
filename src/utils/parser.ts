@@ -150,7 +150,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
 
             const modifier = fieldMatch[1];
             const type = fieldMatch[3] || 'Object';
-             const symbol: DocumentSymbol = {
+            const symbol: DocumentSymbol = {
                 name: name,
                 kind: SymbolKind.Field,
                 detail: `${modifier} ${name} As ${type}`,

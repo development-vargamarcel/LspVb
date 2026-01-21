@@ -41,7 +41,7 @@ export function getWordAtPosition(document: TextDocument, position: Position): s
     }
 
     if (start === end) {
-        return "";
+        return '';
     }
 
     return text.substring(start, end);

@@ -12,11 +12,14 @@ import {
     FOLD_DO_START_REGEX
 } from '../utils/regexes';
 
-export function onFoldingRanges(params: FoldingRangeParams, document: TextDocument): FoldingRange[] {
+export function onFoldingRanges(
+    params: FoldingRangeParams,
+    document: TextDocument
+): FoldingRange[] {
     const text = document.getText();
     const lines = text.split(/\r?\n/);
     const ranges: FoldingRange[] = [];
-    const stack: { line: number, type: string }[] = [];
+    const stack: { line: number; type: string }[] = [];
 
     for (let i = 0; i < lines.length; i++) {
         // Remove comments for analysis
@@ -33,15 +36,15 @@ export function onFoldingRanges(params: FoldingRangeParams, document: TextDocume
 
         if (endMatch) {
             if (stack.length > 0) {
-                 const start = stack.pop();
-                 if (start) {
-                     // Fold from start line to current line - 1
-                     // (Keep the End line visible)
-                     ranges.push({
-                         startLine: start.line,
-                         endLine: i - 1
-                     });
-                 }
+                const start = stack.pop();
+                if (start) {
+                    // Fold from start line to current line - 1
+                    // (Keep the End line visible)
+                    ranges.push({
+                        startLine: start.line,
+                        endLine: i - 1
+                    });
+                }
             }
             // End line cannot be a start line (unless mixed, which is bad style)
             continue;
@@ -53,14 +56,14 @@ export function onFoldingRanges(params: FoldingRangeParams, document: TextDocume
         if (FOLD_BLOCK_START_REGEX.test(line)) {
             startType = 'block';
         } else if (FOLD_IF_START_REGEX.test(line)) {
-             // Block If check: If ... Then (and nothing else on line)
-             startType = 'if';
+            // Block If check: If ... Then (and nothing else on line)
+            startType = 'if';
         } else if (FOLD_FOR_START_REGEX.test(line)) {
-             startType = 'for';
+            startType = 'for';
         } else if (FOLD_WHILE_START_REGEX.test(line)) {
-             startType = 'while';
+            startType = 'while';
         } else if (FOLD_DO_START_REGEX.test(line)) {
-             startType = 'do';
+            startType = 'do';
         }
 
         if (startType) {
