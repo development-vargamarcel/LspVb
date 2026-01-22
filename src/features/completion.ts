@@ -17,6 +17,65 @@ export function onCompletion(
     const text = document.getText();
     const offset = document.offsetAt(params.position);
 
+    const symbols = parseDocumentSymbols(document);
+
+    // 1. Check for Member Access (Dot)
+    let triggerOffset = offset - 1;
+    while (triggerOffset >= 0 && /\w/.test(text[triggerOffset])) {
+        triggerOffset--;
+    }
+
+    // Check if the character before the current word (or cursor) is a dot
+    const isMemberAccess = triggerOffset >= 0 && text[triggerOffset] === '.';
+
+    if (isMemberAccess) {
+        // Get the variable name before the dot
+        let dotIndex = triggerOffset;
+        let varEnd = dotIndex; // Start scanning before dot
+        let varStart = varEnd - 1;
+
+        // Skip whitespace before dot
+        while (varStart >= 0 && /\s/.test(text[varStart])) {
+            varStart--;
+        }
+        varEnd = varStart + 1;
+
+        // Scan the word
+        while (varStart >= 0 && /\w/.test(text[varStart])) {
+            varStart--;
+        }
+        const varName = text.substring(varStart + 1, varEnd).toLowerCase();
+
+        // Find the variable symbol
+        const varSymbol = findSymbolRecursive(symbols, varName);
+
+        if (varSymbol && varSymbol.detail) {
+            // Parse detail to get type: "Dim x As MyClass" -> "MyClass"
+            const asMatch = /\bAs\s+(\w+)/i.exec(varSymbol.detail);
+            if (asMatch) {
+                const typeName = asMatch[1].toLowerCase();
+                // Find the type definition
+                const typeSymbol = findSymbolRecursive(symbols, typeName);
+                if (typeSymbol && typeSymbol.children) {
+                     for (const child of typeSymbol.children) {
+                         items.push({
+                             label: child.name,
+                             kind: mapSymbolKindToCompletionKind(child.kind),
+                             detail: child.detail,
+                             documentation: `Member of ${typeSymbol.name}`
+                         });
+                     }
+                     return items;
+                }
+            }
+        }
+        // If we can't find the type or members, we might return empty or standard items.
+        // For now, let's return empty to avoid noise if we are confident it's a member access.
+        // Or maybe falling back to global symbols is better?
+        // Let's return empty to be strict about "Member Access".
+        return items;
+    }
+
     // Check context (previous word)
     // Scan backwards from offset, skipping whitespace
     let i = offset - 1;
@@ -78,7 +137,7 @@ export function onCompletion(
     }
 
     // Add Symbols from Document
-    const symbols = parseDocumentSymbols(document);
+    // const symbols = parseDocumentSymbols(document); // Already parsed above
     for (const sym of symbols) {
         // For symbols, we might also want to filter.
         // If 'As ...', we only want Classes/Enums/Modules?
@@ -118,6 +177,19 @@ export function onCompletionResolve(item: CompletionItem): CompletionItem {
         item.documentation = KEYWORDS[data].documentation;
     }
     return item;
+}
+
+function findSymbolRecursive(symbols: any[], name: string): any | null {
+    for (const sym of symbols) {
+        if (sym.name.toLowerCase() === name) {
+            return sym;
+        }
+        if (sym.children) {
+            const childMatch = findSymbolRecursive(sym.children, name);
+            if (childMatch) return childMatch;
+        }
+    }
+    return null;
 }
 
 function mapSymbolKindToCompletionKind(kind: SymbolKind): CompletionItemKind {

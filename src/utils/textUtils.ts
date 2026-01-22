@@ -46,3 +46,32 @@ export function getWordAtPosition(document: TextDocument, position: Position): s
 
     return text.substring(start, end);
 }
+
+/**
+ * Formats a line of code by normalizing spacing around operators, respecting string literals.
+ * @param line The line of code to format.
+ * @returns The formatted line.
+ */
+export function formatLine(line: string): string {
+    // Split by string literals: "..." where " is escaped by ""
+    const parts = line.split(/("(?:[^"]|"")*")/g);
+
+    for (let i = 0; i < parts.length; i++) {
+        // Even indices are code, Odd indices are strings
+        if (i % 2 === 0) {
+            let code = parts[i];
+
+            // Normalize spaces around operators
+            // Handles: +=, -=, *=, /=, \=, ^=, &=, :=, <>, <=, >=, =
+            // Removed: &, <, > (unsafe for Hex literals, Type chars, XML)
+            code = code.replace(/\s*(\+=|-=|\*=|\/=|\^=|&=|:=|<>|<=|>=|\\=|=)\s*/g, ' $1 ');
+
+            // Normalize spaces after commas
+            code = code.replace(/\s*,\s*/g, ', ');
+
+            parts[i] = code;
+        }
+    }
+
+    return parts.join('');
+}

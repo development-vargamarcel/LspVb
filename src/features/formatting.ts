@@ -1,4 +1,5 @@
 import { TextDocument, TextEdit, FormattingOptions, Range } from 'vscode-languageserver/node';
+import { formatLine } from '../utils/textUtils';
 import {
     VAL_BLOCK_START_REGEX,
     VAL_FOR_START_REGEX,
@@ -25,7 +26,10 @@ export function formatDocument(document: TextDocument, options: FormattingOption
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        const trimmed = line.trim();
+        let trimmed = line.trim();
+
+        // Apply spacing formatting
+        trimmed = formatLine(trimmed);
 
         if (trimmed === '') {
             if (line.length > 0) {
