@@ -12,6 +12,10 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
     documentFormattingProvider: true,
     referencesProvider: true,
     renameProvider: true,
+    codeActionProvider: true,
+    signatureHelpProvider: {
+        triggerCharacters: ['(', ',']
+    },
     workspace: {
         workspaceFolders: {
             supported: true

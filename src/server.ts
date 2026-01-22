@@ -20,7 +20,12 @@ import {
     WorkspaceEdit,
     Location,
     DocumentFormattingParams,
-    TextEdit
+    TextEdit,
+    CodeActionParams,
+    CodeAction,
+    Command,
+    SignatureHelpParams,
+    SignatureHelp
 } from 'vscode-languageserver/node';
 
 import {
@@ -33,6 +38,8 @@ import { onFoldingRanges } from './features/folding';
 import { onDefinition } from './features/definition';
 import { onReferences } from './features/references';
 import { onRenameRequest } from './features/rename';
+import { onCodeAction } from './features/codeAction';
+import { onSignatureHelp } from './features/signatureHelp';
 import { parseDocumentSymbols } from './utils/parser';
 import { formatDocument } from './features/formatting';
 import { Logger } from './utils/logger';
@@ -168,6 +175,24 @@ connection.onRenameRequest(
         if (!document) return null;
         return onRenameRequest(params, document);
     }, null, 'Rename')
+);
+
+// This handler provides code actions
+connection.onCodeAction(
+    safeHandler((params: CodeActionParams): (Command | CodeAction)[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        return onCodeAction(params, document);
+    }, [], 'CodeAction')
+);
+
+// This handler provides signature help
+connection.onSignatureHelp(
+    safeHandler((params: SignatureHelpParams): SignatureHelp | null => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return null;
+        return onSignatureHelp(params, document);
+    }, null, 'SignatureHelp')
 );
 
 // This handler provides formatting
