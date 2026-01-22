@@ -2,7 +2,9 @@
 export const MODIFIER_PATTERN = '(?:Public|Private|Friend|Protected)';
 
 // Patterns
-const BLOCK_START_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Property)\\s+(\\w+)`;
+// Updated BLOCK_START_PATTERN to optionally capture arguments in parens.
+// Groups: 1=Modifier, 2=Type, 3=Name, 4=Args
+const BLOCK_START_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Property)\\s+(\\w+)(?:\\s*\\(([^)]*)\\))?`;
 const DIM_PATTERN = `^\\s*Dim\\s+(\\w+)(?:\\s+As\\s+(\\w+))?`;
 const CONST_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)?Const\\s+(\\w+)(?:\\s+As\\s+(\\w+))?`;
 const FIELD_PATTERN = `^\\s*(${MODIFIER_PATTERN})\\s+(\\w+)(?:\\s+As\\s+(\\w+))?`;

@@ -14,30 +14,99 @@ export function onCompletion(
     document: TextDocument
 ): CompletionItem[] {
     const items: CompletionItem[] = [];
+    const text = document.getText();
+    const offset = document.offsetAt(params.position);
+
+    // Check context (previous word)
+    // Scan backwards from offset, skipping whitespace
+    let i = offset - 1;
+    // Skip current word being typed
+    while (i >= 0 && /\w/.test(text[i])) {
+        i--;
+    }
+    // Skip whitespace
+    while (i >= 0 && /\s/.test(text[i])) {
+        i--;
+    }
+
+    // Read previous word
+    let end = i + 1;
+    let start = end;
+    while (start > 0 && /\w/.test(text[start - 1])) {
+        start--;
+    }
+    const prevWord = text.substring(start, end).toLowerCase();
+
+    const isTypeContext = prevWord === 'as';
 
     // Add Keywords
     for (const key in KEYWORDS) {
         const val = KEYWORDS[key];
-        items.push({
-            label: val.label,
-            kind: val.kind,
-            data: key
-        });
+
+        // Context Filtering
+        if (isTypeContext) {
+            // In 'As ...' context, we only want Types (Classes, Interfaces, Enums)
+            // KEYWORDS has 'kind'. Check if it is Class, Interface, etc.
+            // Or specific keyword allowlist (Integer, String, etc.)
+
+            // KEYWORDS definitions for types use CompletionItemKind.Class
+            // Also allow 'New' maybe? No, 'As New' is valid.
+
+            if (val.kind === CompletionItemKind.Class || key === 'new') {
+                 items.push({
+                    label: val.label,
+                    kind: val.kind,
+                    data: key
+                });
+            }
+        } else {
+            // Not in Type context.
+            // We usually want everything, BUT maybe not Types as top level keywords?
+            // Actually in VB 'Dim x As Integer', 'Integer' is valid only after As.
+            // But 'x = Integer.Parse' ? (If Integer was a class).
+            // Basic types like Integer are usually not valid as standalone statements.
+
+            // Let's keep it simple: If NOT type context, include everything.
+            // But maybe prioritize?
+
+            items.push({
+                label: val.label,
+                kind: val.kind,
+                data: key
+            });
+        }
     }
 
     // Add Symbols from Document
     const symbols = parseDocumentSymbols(document);
     for (const sym of symbols) {
-        items.push({
-            label: sym.name,
-            kind: mapSymbolKindToCompletionKind(sym.kind),
-            detail: sym.detail,
-            documentation: `User defined symbol: ${sym.name}`
-        });
+        // For symbols, we might also want to filter.
+        // If 'As ...', we only want Classes/Enums/Modules?
+        // Variables/Functions are not types.
+
+        let shouldAdd = true;
+        if (isTypeContext) {
+            if (sym.kind !== SymbolKind.Class && sym.kind !== SymbolKind.Module && sym.kind !== SymbolKind.Interface && sym.kind !== SymbolKind.Enum) {
+                shouldAdd = false;
+            }
+        }
+
+        if (shouldAdd) {
+            items.push({
+                label: sym.name,
+                kind: mapSymbolKindToCompletionKind(sym.kind),
+                detail: sym.detail,
+                documentation: `User defined symbol: ${sym.name}`
+            });
+        }
     }
 
     // Add Snippets
-    items.push(...SNIPPETS);
+    // Snippets are usually statements (If, For, Sub).
+    // They are NOT valid in Type context.
+    if (!isTypeContext) {
+        items.push(...SNIPPETS);
+    }
 
     return items;
 }

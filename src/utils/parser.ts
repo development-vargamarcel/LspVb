@@ -48,22 +48,14 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         }
 
         // 2. Check for Block Start (Sub, Function, Class, Module)
-        // Groups: 1=Modifier, 2=Type, 3=Name
-        // Note: PARSER_BLOCK_REGEX is global/multiline, so we need to reset lastIndex or use exec on the string
-        // Since we are iterating lines, we should use a fresh regex or match against the line.
-        // The PARSER_BLOCK_REGEX in regexes.ts was defined with flags 'gmi'.
-        // Using it with exec() on a single line loop can be tricky with 'g'.
-        // Let's rely on simple line matching here instead of the exported 'g' regex for safety in this loop structure,
-        // OR construct a new RegExp from the source.
-
-        // Actually, looking at the previous implementation, it used `exec` on the line.
-        // Let's create a local regex for single line match based on the pattern.
+        // Groups: 1=Modifier, 2=Type, 3=Name, 4=Args (optional)
 
         const blockMatch = new RegExp(PARSER_BLOCK_REGEX.source, 'i').exec(trimmed);
 
         if (blockMatch) {
             const type = blockMatch[2]; // Sub, Function...
             const name = blockMatch[3];
+            const args = blockMatch[4] !== undefined ? `(${blockMatch[4]})` : ''; // Capture args
             let kind: SymbolKind = SymbolKind.Function;
 
             if (/Sub/i.test(type)) kind = SymbolKind.Method;
@@ -74,7 +66,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             const symbol: DocumentSymbol = {
                 name: name,
                 kind: kind,
-                detail: type,
+                detail: `${type}${args}`, // Store full signature in detail
                 range: {
                     start: { line: i, character: 0 },
                     end: { line: i, character: rawLine.length } // Will be updated on close
