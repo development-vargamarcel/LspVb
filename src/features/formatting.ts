@@ -29,7 +29,7 @@ export function formatDocument(document: TextDocument, options: FormattingOption
 
         if (trimmed === '') {
             if (line.length > 0) {
-                 edits.push({
+                edits.push({
                     range: Range.create(i, 0, i, line.length),
                     newText: ''
                 });
@@ -39,8 +39,6 @@ export function formatDocument(document: TextDocument, options: FormattingOption
 
         let currentLevel = indentLevel;
         let isCase = false;
-        let isSelectCase = false;
-        let isEndSelect = false;
 
         const blockEndMatch = VAL_BLOCK_END_REGEX.exec(trimmed);
 
@@ -48,7 +46,6 @@ export function formatDocument(document: TextDocument, options: FormattingOption
 
         // End Select
         if (blockEndMatch && blockEndMatch[1].toLowerCase() === 'select') {
-            isEndSelect = true;
             if (selectStack.length > 0) {
                 if (selectStack[selectStack.length - 1]) {
                     indentLevel--; // Close previous Case
@@ -61,10 +58,12 @@ export function formatDocument(document: TextDocument, options: FormattingOption
             currentLevel = indentLevel;
         }
         // Other End Blocks
-        else if (blockEndMatch ||
-                 VAL_NEXT_REGEX.test(trimmed) ||
-                 VAL_LOOP_REGEX.test(trimmed) ||
-                 VAL_WEND_REGEX.test(trimmed)) {
+        else if (
+            blockEndMatch ||
+            VAL_NEXT_REGEX.test(trimmed) ||
+            VAL_LOOP_REGEX.test(trimmed) ||
+            VAL_WEND_REGEX.test(trimmed)
+        ) {
             indentLevel--;
             currentLevel = indentLevel;
         }
@@ -100,13 +99,12 @@ export function formatDocument(document: TextDocument, options: FormattingOption
 
         // Select Case
         if (VAL_SELECT_CASE_START_REGEX.test(trimmed)) {
-            isSelectCase = true;
             indentLevel++;
             selectStack.push(false);
         }
         // Case
         else if (isCase) {
-             indentLevel++;
+            indentLevel++;
         }
         // Other Blocks
         else if (shouldIndentNext(trimmed)) {
@@ -121,9 +119,11 @@ function shouldIndentNext(line: string): boolean {
     // Blocks that increase indentation (Excluding Select Case which is handled manually)
     if (VAL_SELECT_CASE_START_REGEX.test(line)) return false;
 
-    return VAL_BLOCK_START_REGEX.test(line) ||
+    return (
+        VAL_BLOCK_START_REGEX.test(line) ||
         FMT_IF_THEN_START_REGEX.test(line) ||
         VAL_FOR_START_REGEX.test(line) ||
         VAL_DO_START_REGEX.test(line) ||
-        VAL_WHILE_START_REGEX.test(line);
+        VAL_WHILE_START_REGEX.test(line)
+    );
 }

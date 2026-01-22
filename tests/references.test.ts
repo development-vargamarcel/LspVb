@@ -1,0 +1,100 @@
+import { expect } from 'chai';
+import { onReferences } from '../src/features/references';
+import { TextDocument } from 'vscode-languageserver-textdocument';
+import { ReferenceParams, Position } from 'vscode-languageserver/node';
+
+describe('References Feature', () => {
+    it('should find all references of a variable', () => {
+        const text = `
+Sub Main()
+    Dim x As Integer
+    x = 10
+    Print(x)
+End Sub
+        `;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+        const position = Position.create(2, 8); // "Dim x" -> position of x
+
+        const params: ReferenceParams = {
+            textDocument: { uri: 'file:///test.vb' },
+            position: position,
+            context: { includeDeclaration: true }
+        };
+
+        const references = onReferences(params, document);
+
+        // Should find 3 occurrences of 'x': Dim x, x = 10, Print(x)
+        expect(references).to.have.lengthOf(3);
+
+        // Verify positions (lines 2, 3, 4) - note: text split makes lines 0-indexed based on the provided string.
+        // First empty line is 0.
+        // Sub Main() is 1.
+        // Dim x is 2.
+        // x = 10 is 3.
+        // Print(x) is 4.
+
+        expect(references[0].range.start.line).to.equal(2);
+        expect(references[1].range.start.line).to.equal(3);
+        expect(references[2].range.start.line).to.equal(4);
+    });
+
+    it('should be case insensitive', () => {
+         const text = `
+Dim myVar As Integer
+MYVAR = 5
+        `;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+        const position = Position.create(1, 4); // "myVar"
+
+        const params: ReferenceParams = {
+            textDocument: { uri: 'file:///test.vb' },
+            position: position,
+            context: { includeDeclaration: true }
+        };
+
+        const references = onReferences(params, document);
+        expect(references).to.have.lengthOf(2);
+    });
+
+    it('should ignore substrings in other words (word boundary check)', () => {
+        const text = `
+Dim x As Integer
+Dim xy As Integer
+x = 1
+xy = 2
+        `;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+        const position = Position.create(1, 4); // "x"
+
+        const params: ReferenceParams = {
+            textDocument: { uri: 'file:///test.vb' },
+            position: position,
+            context: { includeDeclaration: true }
+        };
+
+        const references = onReferences(params, document);
+        // Should find "Dim x" and "x = 1". Should NOT find "xy"
+        expect(references).to.have.lengthOf(2);
+    });
+
+    it('should ignore comments if possible', () => {
+         const text = `
+Dim x As Integer
+' This is x in a comment
+x = 1
+        `;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+        const position = Position.create(1, 4); // "x"
+
+        const params: ReferenceParams = {
+            textDocument: { uri: 'file:///test.vb' },
+            position: position,
+            context: { includeDeclaration: true }
+        };
+
+        const references = onReferences(params, document);
+        // Should find "Dim x" and "x = 1".
+        // The implementation tries to ignore comments.
+        expect(references).to.have.lengthOf(2);
+    });
+});

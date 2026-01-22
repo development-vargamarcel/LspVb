@@ -15,6 +15,10 @@ import {
     FoldingRangeParams,
     DefinitionParams,
     Definition,
+    ReferenceParams,
+    RenameParams,
+    WorkspaceEdit,
+    Location,
     DocumentFormattingParams,
     TextEdit
 } from 'vscode-languageserver/node';
@@ -27,6 +31,8 @@ import { onCompletion, onCompletionResolve } from './features/completion';
 import { onHover } from './features/hover';
 import { onFoldingRanges } from './features/folding';
 import { onDefinition } from './features/definition';
+import { onReferences } from './features/references';
+import { onRenameRequest } from './features/rename';
 import { parseDocumentSymbols } from './utils/parser';
 import { formatDocument } from './features/formatting';
 import { Logger } from './utils/logger';
@@ -144,6 +150,24 @@ connection.onDefinition(
         if (!document) return null;
         return onDefinition(params, document);
     }, null, 'Definition')
+);
+
+// This handler provides references lookup
+connection.onReferences(
+    safeHandler((params: ReferenceParams): Location[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        return onReferences(params, document);
+    }, [], 'References')
+);
+
+// This handler provides rename support
+connection.onRenameRequest(
+    safeHandler((params: RenameParams): WorkspaceEdit | null => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return null;
+        return onRenameRequest(params, document);
+    }, null, 'Rename')
 );
 
 // This handler provides formatting

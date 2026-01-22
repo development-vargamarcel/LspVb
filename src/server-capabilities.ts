@@ -10,6 +10,8 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
     foldingRangeProvider: true,
     definitionProvider: true,
     documentFormattingProvider: true,
+    referencesProvider: true,
+    renameProvider: true,
     workspace: {
         workspaceFolders: {
             supported: true
