@@ -2,9 +2,6 @@ import { ServerCapabilities, TextDocumentSyncKind } from 'vscode-languageserver/
 
 export const SERVER_CAPABILITIES: ServerCapabilities = {
     textDocumentSync: TextDocumentSyncKind.Incremental,
-    completionProvider: {
-        resolveProvider: true
-    },
     hoverProvider: true,
     documentSymbolProvider: true,
     foldingRangeProvider: true,
@@ -15,6 +12,10 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
     codeActionProvider: true,
     signatureHelpProvider: {
         triggerCharacters: ['(', ',']
+    },
+    completionProvider: {
+        resolveProvider: true,
+        triggerCharacters: ['.']
     },
     workspace: {
         workspaceFolders: {
