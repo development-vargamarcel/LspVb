@@ -1,8 +1,16 @@
-import { SignatureHelp, SignatureHelpParams, SignatureInformation, ParameterInformation } from 'vscode-languageserver/node';
+import {
+    SignatureHelp,
+    SignatureHelpParams,
+    SignatureInformation,
+    ParameterInformation
+} from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { parseDocumentSymbols } from '../utils/parser';
 
-export function onSignatureHelp(params: SignatureHelpParams, document: TextDocument): SignatureHelp | null {
+export function onSignatureHelp(
+    params: SignatureHelpParams,
+    document: TextDocument
+): SignatureHelp | null {
     const text = document.getText();
     const offset = document.offsetAt(params.position);
 
@@ -42,7 +50,10 @@ export function onSignatureHelp(params: SignatureHelpParams, document: TextDocum
                     const symbols = parseDocumentSymbols(document);
                     const symbol = findSymbolRecursive(symbols, functionName.toLowerCase());
 
-                    if (symbol && (symbol.detail.startsWith('Sub') || symbol.detail.startsWith('Function'))) {
+                    if (
+                        symbol &&
+                        (symbol.detail.startsWith('Sub') || symbol.detail.startsWith('Function'))
+                    ) {
                         // detail format is "Sub(arg1, arg2)" or "Function(args)"
                         // We need to parse detail to get label and parameters.
 
@@ -51,7 +62,10 @@ export function onSignatureHelp(params: SignatureHelpParams, document: TextDocum
                         const documentation = `Signature for ${symbol.name}`;
 
                         // Parse parameters from detail
-                        const paramString = symbol.detail.substring(symbol.detail.indexOf('(') + 1, symbol.detail.lastIndexOf(')'));
+                        const paramString = symbol.detail.substring(
+                            symbol.detail.indexOf('(') + 1,
+                            symbol.detail.lastIndexOf(')')
+                        );
                         const parameters: ParameterInformation[] = [];
 
                         if (paramString.trim()) {

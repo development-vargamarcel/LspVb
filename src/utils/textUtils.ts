@@ -1,5 +1,6 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Position } from 'vscode-languageserver/node';
+import { KEYWORDS } from '../keywords';
 
 /**
  * Strips comments from a line of Visual Basic code, respecting string literals.
@@ -73,5 +74,34 @@ export function formatLine(line: string): string {
         }
     }
 
+    return parts.join('');
+}
+
+/**
+ * Formats keywords in a line to their proper casing.
+ * @param line The line of code to process.
+ * @returns The line with formatted keywords.
+ */
+export function formatKeywordCasing(line: string): string {
+    // Split by string literals and comments to avoid modifying them
+    const parts = line.split(/("(?:[^"]|"")*"|'.*)/g);
+
+    for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+
+        // Skip string literals and comments
+        if (part.startsWith('"') || part.startsWith("'")) {
+            continue;
+        }
+
+        // Replace keywords
+        parts[i] = part.replace(/\b\w+\b/g, (match) => {
+            const lower = match.toLowerCase();
+            if (KEYWORDS[lower]) {
+                return KEYWORDS[lower].label;
+            }
+            return match;
+        });
+    }
     return parts.join('');
 }

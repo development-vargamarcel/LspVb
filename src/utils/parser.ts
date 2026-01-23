@@ -94,6 +94,48 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
                 children: []
             };
 
+            if (blockMatch[4]) {
+                const argString = blockMatch[4];
+                const argsStart = rawLine.indexOf('(') + 1;
+                let currentOffset = argsStart;
+
+                const argParts = argString.split(',');
+                for (const part of argParts) {
+                    const partTrimmed = part.trim();
+                    const partIndex = rawLine.indexOf(partTrimmed, currentOffset);
+
+                    const argRegex =
+                        /(?:ByVal|ByRef|Optional|ParamArray)?\s*(\w+)(?:\(\))?(?:\s+As\s+(\w+))?/i;
+                    const match = argRegex.exec(partTrimmed);
+
+                    if (match) {
+                        const argName = match[1];
+                        const argType = match[2] || 'Object';
+                        const nameIndex =
+                            partIndex !== -1 ? partIndex + partTrimmed.indexOf(argName) : 0;
+
+                        symbol.children?.push({
+                            name: argName,
+                            kind: SymbolKind.Variable,
+                            detail: `Argument ${argName} As ${argType}`,
+                            range: {
+                                start: { line: i, character: nameIndex },
+                                end: { line: i, character: nameIndex + argName.length }
+                            },
+                            selectionRange: {
+                                start: { line: i, character: nameIndex },
+                                end: { line: i, character: nameIndex + argName.length }
+                            },
+                            children: []
+                        });
+                    }
+
+                    if (partIndex !== -1) {
+                        currentOffset = partIndex + partTrimmed.length;
+                    }
+                }
+            }
+
             addSymbol(symbol);
             stack.push(symbol);
             continue;
@@ -181,8 +223,9 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         if (VAL_IF_START_REGEX.test(trimmed)) {
             // Check if it's a block If
             const hasThen = VAL_THEN_REGEX.test(trimmed);
-            if (!hasThen || trimmed.endsWith('Then') || trimmed.endsWith('Then \'')) { // If ... Then [EOL]
-                 innerBlockName = 'If';
+            if (!hasThen || trimmed.endsWith('Then') || trimmed.endsWith("Then '")) {
+                // If ... Then [EOL]
+                innerBlockName = 'If';
             }
             // If ... Then x -> Single line, ignore
         } else if (VAL_FOR_START_REGEX.test(trimmed)) {
@@ -219,9 +262,13 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
     return rootSymbols;
 }
 
-export function findSymbolAtPosition(symbols: DocumentSymbol[], name: string, position: Position): DocumentSymbol | null {
+export function findSymbolAtPosition(
+    symbols: DocumentSymbol[],
+    name: string,
+    position: Position
+): DocumentSymbol | null {
     // 1. Find the deepest symbol that contains the position
-    let container: DocumentSymbol | null = null;
+    const container: DocumentSymbol | null = null;
     let currentScope = symbols;
 
     // We need to keep track of the chain of scopes to traverse back up
@@ -259,7 +306,9 @@ export function findSymbolAtPosition(symbols: DocumentSymbol[], name: string, po
             // In VB, shadowing allows re-definition.
 
             // Find ALL matching symbols in this scope
-            const matches = scope.children.filter(c => c.name.toLowerCase() === name.toLowerCase());
+            const matches = scope.children.filter(
+                (c) => c.name.toLowerCase() === name.toLowerCase()
+            );
 
             // If multiple matches (e.g. shadowed in same scope?), pick the one closest to position?
             // Actually, if we have block scopes (If, For), we shouldn't have duplicates in the same block (invalid code).
@@ -309,11 +358,11 @@ export function findSymbolAtPosition(symbols: DocumentSymbol[], name: string, po
     if (scopeChain.length > 0) {
         // We checked all containers.
         // Finally check the root level symbols (siblings of the top-most container)
-        const rootMatches = symbols.filter(s => s.name.toLowerCase() === name.toLowerCase());
+        const rootMatches = symbols.filter((s) => s.name.toLowerCase() === name.toLowerCase());
         if (rootMatches.length > 0) return rootMatches[0];
     } else {
         // We are at root. Check root symbols.
-        const matches = symbols.filter(s => s.name.toLowerCase() === name.toLowerCase());
+        const matches = symbols.filter((s) => s.name.toLowerCase() === name.toLowerCase());
         if (matches.length > 0) return matches[0];
     }
 

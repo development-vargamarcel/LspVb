@@ -1,5 +1,5 @@
 import { TextDocument, TextEdit, FormattingOptions, Range } from 'vscode-languageserver/node';
-import { formatLine } from '../utils/textUtils';
+import { formatLine, formatKeywordCasing } from '../utils/textUtils';
 import {
     VAL_BLOCK_START_REGEX,
     VAL_FOR_START_REGEX,
@@ -27,6 +27,9 @@ export function formatDocument(document: TextDocument, options: FormattingOption
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         let trimmed = line.trim();
+
+        // Apply keyword casing formatting
+        trimmed = formatKeywordCasing(trimmed);
 
         // Apply spacing formatting
         trimmed = formatLine(trimmed);
