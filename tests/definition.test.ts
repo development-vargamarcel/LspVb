@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { DefinitionParams } from 'vscode-languageserver/node';
+import { DefinitionParams, Position } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { onDefinition } from '../src/features/definition';
 
@@ -47,5 +47,64 @@ End Sub
 
         const result = onDefinition(params, document);
         expect(result).to.be.null;
+    });
+
+    describe('Scope Awareness', () => {
+        const text = `
+Class MyClass
+    Public x As String ' Class Member
+
+    Sub Test()
+        Dim x As Integer ' Local Variable
+        x = 1
+
+        If True Then
+            Dim x As Boolean ' Block Variable (Shadowing)
+            x = True
+        End If
+
+        x = 2
+    End Sub
+
+    Sub Other()
+        x = "Hello" ' Should refer to Class Member
+    End Sub
+End Class
+`;
+        const document = TextDocument.create('uri', 'vb', 1, text);
+
+        // Helper to get definition line number
+        function getDefinitionLine(line: number, char: number): number | undefined {
+            const position = Position.create(line, char);
+            const def = onDefinition({ textDocument: { uri: 'uri' }, position }, document);
+            if (def && 'range' in def) {
+                return def.range.start.line;
+            }
+            return undefined;
+        }
+
+        it('should resolve Block Variable inside block', () => {
+            // Line 10: x = True. Should refer to Line 9 (Dim x As Boolean)
+            const defLine = getDefinitionLine(10, 12);
+            expect(defLine).to.equal(9);
+        });
+
+        it('should resolve Local Variable outside block', () => {
+            // Line 13: x = 2. Should refer to Line 5 (Dim x As Integer)
+            const defLine = getDefinitionLine(13, 8);
+            expect(defLine).to.equal(5);
+        });
+
+        it('should resolve Class Member in another method', () => {
+            // Line 17: x = "Hello". Should refer to Line 2 (Public x As String)
+            const defLine = getDefinitionLine(17, 8);
+            expect(defLine).to.equal(2);
+        });
+
+        it('should resolve Local Variable (definition line itself)', () => {
+            // Line 6: x = 1. Should refer to Line 5.
+            const defLine = getDefinitionLine(6, 8);
+            expect(defLine).to.equal(5);
+        });
     });
 });

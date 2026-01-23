@@ -20,60 +20,132 @@ export function onCompletion(
     const symbols = parseDocumentSymbols(document);
 
     // 1. Check for Member Access (Dot)
-    let triggerOffset = offset - 1;
-    while (triggerOffset >= 0 && /\w/.test(text[triggerOffset])) {
-        triggerOffset--;
+    // We scan backwards from the cursor to find the chain.
+    let scanIndex = offset;
+
+    // 1. Skip current word being typed (if any)
+    while (scanIndex > 0 && /\w/.test(text[scanIndex - 1])) {
+        scanIndex--;
     }
 
-    // Check if the character before the current word (or cursor) is a dot
-    const isMemberAccess = triggerOffset >= 0 && text[triggerOffset] === '.';
+    // 2. Skip whitespace
+    while (scanIndex > 0 && /[ \t]/.test(text[scanIndex - 1])) {
+        scanIndex--;
+    }
+
+    // 3. Check for Dot
+    const isMemberAccess = scanIndex > 0 && text[scanIndex - 1] === '.';
 
     if (isMemberAccess) {
-        // Get the variable name before the dot
-        let dotIndex = triggerOffset;
-        let varEnd = dotIndex; // Start scanning before dot
-        let varStart = varEnd - 1;
+        scanIndex--; // Move past the dot
+        const parts: string[] = [];
 
-        // Skip whitespace before dot
-        while (varStart >= 0 && /\s/.test(text[varStart])) {
-            varStart--;
-        }
-        varEnd = varStart + 1;
+        while (scanIndex >= 0) {
+             // a. Skip whitespace
+            while (scanIndex > 0 && /[ \t]/.test(text[scanIndex - 1])) {
+                scanIndex--;
+            }
 
-        // Scan the word
-        while (varStart >= 0 && /\w/.test(text[varStart])) {
-            varStart--;
-        }
-        const varName = text.substring(varStart + 1, varEnd).toLowerCase();
+            // b. Read Word
+            let wordEnd = scanIndex;
+            while (scanIndex > 0 && /\w/.test(text[scanIndex - 1])) {
+                scanIndex--;
+            }
+            if (scanIndex === wordEnd) {
+                // No word found (e.g. ".." or ". " or start of line)
+                break;
+            }
+            const word = text.substring(scanIndex, wordEnd);
+            parts.unshift(word); // Add to front
 
-        // Find the variable symbol
-        const varSymbol = findSymbolRecursive(symbols, varName);
+            // c. Skip whitespace again (before the word)
+            while (scanIndex > 0 && /[ \t]/.test(text[scanIndex - 1])) {
+                scanIndex--;
+            }
 
-        if (varSymbol && varSymbol.detail) {
-            // Parse detail to get type: "Dim x As MyClass" -> "MyClass"
-            const asMatch = /\bAs\s+(\w+)/i.exec(varSymbol.detail);
-            if (asMatch) {
-                const typeName = asMatch[1].toLowerCase();
-                // Find the type definition
-                const typeSymbol = findSymbolRecursive(symbols, typeName);
-                if (typeSymbol && typeSymbol.children) {
-                     for (const child of typeSymbol.children) {
-                         items.push({
-                             label: child.name,
-                             kind: mapSymbolKindToCompletionKind(child.kind),
-                             detail: child.detail,
-                             documentation: `Member of ${typeSymbol.name}`
-                         });
-                     }
-                     return items;
-                }
+            // d. Check for Dot
+            if (scanIndex > 0 && text[scanIndex - 1] === '.') {
+                scanIndex--; // Consume dot and continue loop
+            } else {
+                // No dot, end of chain
+                break;
             }
         }
-        // If we can't find the type or members, we might return empty or standard items.
-        // For now, let's return empty to avoid noise if we are confident it's a member access.
-        // Or maybe falling back to global symbols is better?
-        // Let's return empty to be strict about "Member Access".
-        return items;
+
+        if (parts.length > 0) {
+            let currentSymbol: any = null;
+
+            // Resolve the first part (variable or class)
+            currentSymbol = findSymbolRecursive(symbols, parts[0].toLowerCase());
+
+            // Resolve subsequent parts
+            for (let i = 0; i < parts.length; i++) {
+                // If this is the last part, we are looking for its type's members
+                // But wait, the chain is "p.Home". "p" is part[0], "Home" is part[1].
+                // We need to resolve "p" -> type Person.
+                // Then resolve "Home" inside Person -> type Address.
+                // Then return members of Address.
+
+                // If currentSymbol is a variable/property, we need its type.
+                if (!currentSymbol) break;
+
+                // Get type of current symbol
+                let typeName: string | null = null;
+
+                if (currentSymbol.detail) {
+                     const asMatch = /\bAs\s+(\w+)/i.exec(currentSymbol.detail);
+                     if (asMatch) {
+                         typeName = asMatch[1].toLowerCase();
+                     }
+                }
+
+                if (!typeName) {
+                    currentSymbol = null;
+                    break;
+                }
+
+                // Find the Type definition (Class/Structure)
+                const typeSymbol = findSymbolRecursive(symbols, typeName);
+                if (!typeSymbol) {
+                    currentSymbol = null;
+                    break;
+                }
+
+                // If we are at the last part of the chain (e.g. "p.Home" and we want members of Home),
+                // we just found "Home"'s type ("Address"). So we are done.
+                // UNLESS we are iterating.
+
+                // Let's re-evaluate loop.
+                // "p" -> currentSymbol = p (Variable). typeName = Person. typeSymbol = Class Person.
+                // i=0. parts[0]="p".
+                // If there are more parts (e.g. "Home"), we look for "Home" in "Class Person".
+
+                if (i < parts.length - 1) {
+                    const nextPart = parts[i + 1].toLowerCase();
+                    // Look for nextPart in typeSymbol's children
+                    if (typeSymbol.children) {
+                        currentSymbol = typeSymbol.children.find((c: any) => c.name.toLowerCase() === nextPart);
+                    } else {
+                        currentSymbol = null;
+                    }
+                } else {
+                    // We processed the last part of the chain.
+                    // The result is `typeSymbol` which is the type of the last property.
+                    // We want to return its children.
+                    if (typeSymbol.children) {
+                        for (const child of typeSymbol.children) {
+                             items.push({
+                                 label: child.name,
+                                 kind: mapSymbolKindToCompletionKind(child.kind),
+                                 detail: child.detail,
+                                 documentation: `Member of ${typeSymbol.name}`
+                             });
+                        }
+                    }
+                }
+            }
+            return items;
+        }
     }
 
     // Check context (previous word)

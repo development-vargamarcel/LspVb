@@ -167,4 +167,26 @@ End Sub
 `;
         expect(format(input)).to.equal(expected);
     });
+
+    it('should format Else block correctly with misalignment', () => {
+        const input = `
+Sub Main()
+    If True Then
+        x = 1
+      Else
+        x = 2
+    End If
+End Sub
+`;
+        const expected = `
+Sub Main()
+    If True Then
+        x = 1
+    Else
+        x = 2
+    End If
+End Sub
+`;
+        expect(format(input)).to.equal(expected);
+    });
 });
