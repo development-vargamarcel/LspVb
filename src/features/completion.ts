@@ -41,13 +41,13 @@ export function onCompletion(
         const parts: string[] = [];
 
         while (scanIndex >= 0) {
-             // a. Skip whitespace
+            // a. Skip whitespace
             while (scanIndex > 0 && /[ \t]/.test(text[scanIndex - 1])) {
                 scanIndex--;
             }
 
             // b. Read Word
-            let wordEnd = scanIndex;
+            const wordEnd = scanIndex;
             while (scanIndex > 0 && /\w/.test(text[scanIndex - 1])) {
                 scanIndex--;
             }
@@ -93,10 +93,10 @@ export function onCompletion(
                 let typeName: string | null = null;
 
                 if (currentSymbol.detail) {
-                     const asMatch = /\bAs\s+(\w+)/i.exec(currentSymbol.detail);
-                     if (asMatch) {
-                         typeName = asMatch[1].toLowerCase();
-                     }
+                    const asMatch = /\bAs\s+(\w+)/i.exec(currentSymbol.detail);
+                    if (asMatch) {
+                        typeName = asMatch[1].toLowerCase();
+                    }
                 }
 
                 if (!typeName) {
@@ -124,7 +124,9 @@ export function onCompletion(
                     const nextPart = parts[i + 1].toLowerCase();
                     // Look for nextPart in typeSymbol's children
                     if (typeSymbol.children) {
-                        currentSymbol = typeSymbol.children.find((c: any) => c.name.toLowerCase() === nextPart);
+                        currentSymbol = typeSymbol.children.find(
+                            (c: any) => c.name.toLowerCase() === nextPart
+                        );
                     } else {
                         currentSymbol = null;
                     }
@@ -134,12 +136,12 @@ export function onCompletion(
                     // We want to return its children.
                     if (typeSymbol.children) {
                         for (const child of typeSymbol.children) {
-                             items.push({
-                                 label: child.name,
-                                 kind: mapSymbolKindToCompletionKind(child.kind),
-                                 detail: child.detail,
-                                 documentation: `Member of ${typeSymbol.name}`
-                             });
+                            items.push({
+                                label: child.name,
+                                kind: mapSymbolKindToCompletionKind(child.kind),
+                                detail: child.detail,
+                                documentation: `Member of ${typeSymbol.name}`
+                            });
                         }
                     }
                 }
@@ -161,7 +163,7 @@ export function onCompletion(
     }
 
     // Read previous word
-    let end = i + 1;
+    const end = i + 1;
     let start = end;
     while (start > 0 && /\w/.test(text[start - 1])) {
         start--;
@@ -184,7 +186,7 @@ export function onCompletion(
             // Also allow 'New' maybe? No, 'As New' is valid.
 
             if (val.kind === CompletionItemKind.Class || key === 'new') {
-                 items.push({
+                items.push({
                     label: val.label,
                     kind: val.kind,
                     data: key
@@ -217,7 +219,12 @@ export function onCompletion(
 
         let shouldAdd = true;
         if (isTypeContext) {
-            if (sym.kind !== SymbolKind.Class && sym.kind !== SymbolKind.Module && sym.kind !== SymbolKind.Interface && sym.kind !== SymbolKind.Enum) {
+            if (
+                sym.kind !== SymbolKind.Class &&
+                sym.kind !== SymbolKind.Module &&
+                sym.kind !== SymbolKind.Interface &&
+                sym.kind !== SymbolKind.Enum
+            ) {
                 shouldAdd = false;
             }
         }
