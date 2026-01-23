@@ -165,4 +165,15 @@ End Sub
         const diagnostics = validateTextDocument(doc);
         expect(diagnostics).to.have.lengthOf(0);
     });
+
+    it('should NOT warn for Dim with initialization (Type Inference)', () => {
+        const doc = createDoc(`
+Sub Main()
+    Dim x = 1
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        const warning = diagnostics.find(d => d.message.includes('Variable declaration without type'));
+        expect(warning).to.not.exist;
+    });
 });
