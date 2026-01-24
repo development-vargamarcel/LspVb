@@ -266,6 +266,7 @@ export function onCompletion(
         items.push(...SNIPPETS);
     }
 
+    Logger.debug(`Completion: Returning ${items.length} items.`);
     return items;
 }
 

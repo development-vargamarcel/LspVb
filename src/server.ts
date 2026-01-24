@@ -74,51 +74,59 @@ const validationScheduler = new ValidationScheduler(connection);
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 
-connection.onInitialize((params: InitializeParams) => {
-    Logger.log('Initializing SimpleVB Language Server...');
-	const capabilities = params.capabilities;
+connection.onInitialize(
+    safeHandler((params: InitializeParams) => {
+        Logger.log('Initializing SimpleVB Language Server...');
+        const capabilities = params.capabilities;
 
-	// Does the client support the `workspace/configuration` request?
-	// If not, we fall back using global settings.
-	hasConfigurationCapability = !!(
-		capabilities.workspace && !!capabilities.workspace.configuration
-	);
-	hasWorkspaceFolderCapability = !!(
-		capabilities.workspace && !!capabilities.workspace.workspaceFolders
-	);
+        // Does the client support the `workspace/configuration` request?
+        // If not, we fall back using global settings.
+        hasConfigurationCapability = !!(
+            capabilities.workspace && !!capabilities.workspace.configuration
+        );
+        hasWorkspaceFolderCapability = !!(
+            capabilities.workspace && !!capabilities.workspace.workspaceFolders
+        );
 
-	const result: InitializeResult = {
-		capabilities: SERVER_CAPABILITIES
-	};
+        const result: InitializeResult = {
+            capabilities: SERVER_CAPABILITIES
+        };
 
-    Logger.debug(`Capabilities sent: ${JSON.stringify(SERVER_CAPABILITIES)}`);
+        Logger.debug(`Capabilities sent: ${JSON.stringify(SERVER_CAPABILITIES)}`);
 
-	return result;
-});
+        return result;
+    }, { capabilities: SERVER_CAPABILITIES }, 'Initialize')
+);
 
-connection.onInitialized(() => {
-    Logger.log('Server initialized.');
-	if (hasConfigurationCapability) {
-		// Register for all configuration changes.
-		connection.client.register(DidChangeConfigurationNotification.type, undefined);
-	}
-	if (hasWorkspaceFolderCapability) {
-		connection.workspace.onDidChangeWorkspaceFolders(_event => {
-			Logger.log('Workspace folder change event received.');
-		});
-	}
-});
+connection.onInitialized(
+    safeHandler(() => {
+        Logger.log('Server initialized.');
+        if (hasConfigurationCapability) {
+            // Register for all configuration changes.
+            connection.client.register(DidChangeConfigurationNotification.type, undefined);
+        }
+        if (hasWorkspaceFolderCapability) {
+            connection.workspace.onDidChangeWorkspaceFolders(_event => {
+                Logger.log('Workspace folder change event received.');
+            });
+        }
+    }, undefined, 'Initialized')
+);
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
-documents.onDidChangeContent(change => {
-    validationScheduler.scheduleValidation(change.document);
-});
+documents.onDidChangeContent(
+    safeHandler(change => {
+        validationScheduler.scheduleValidation(change.document);
+    }, undefined, 'DidChangeContent')
+);
 
-connection.onDidChangeWatchedFiles(_change => {
-	// Monitored files have change in VSCode
-	Logger.log('We received an file change event');
-});
+connection.onDidChangeWatchedFiles(
+    safeHandler(_change => {
+        // Monitored files have change in VSCode
+        Logger.log('We received an file change event');
+    }, undefined, 'DidChangeWatchedFiles')
+);
 
 // This handler provides the initial list of the completion items.
 connection.onCompletion(

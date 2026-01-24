@@ -9,6 +9,10 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
 import { parseDocumentSymbols } from '../utils/parser';
 
+/**
+ * List of supported semantic token types.
+ * These correspond to the standard LSP token types.
+ */
 export const tokenTypes = [
     'namespace',
     'type',
@@ -34,6 +38,10 @@ export const tokenTypes = [
     'operator'
 ];
 
+/**
+ * List of supported semantic token modifiers.
+ * These correspond to the standard LSP token modifiers.
+ */
 export const tokenModifiers = [
     'declaration',
     'definition',
