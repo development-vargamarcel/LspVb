@@ -74,6 +74,15 @@ export function onInlayHints(params: InlayHintParams, document: TextDocument): I
 
                 if (char === '"') {
                     inString = !inString;
+                } else if (char === "'" && !inString) {
+                    // Comment started, skip to end of line
+                    const eolIndex = text.indexOf('\n', i);
+                    if (eolIndex !== -1) {
+                        i = eolIndex;
+                        continue; // Proceed to next char (newline)
+                    } else {
+                        break; // End of file
+                    }
                 }
 
                 if (!inString) {

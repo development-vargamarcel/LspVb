@@ -1,9 +1,4 @@
-import {
-    CodeLens,
-    CodeLensParams,
-    SymbolKind,
-    DocumentSymbol
-} from 'vscode-languageserver/node';
+import { CodeLens, CodeLensParams, SymbolKind, DocumentSymbol } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
 import { parseDocumentSymbols } from '../utils/parser';
@@ -77,10 +72,22 @@ export function onCodeLensResolve(codeLens: CodeLens, document: TextDocument): C
     // The command 'editor.action.showReferences' is a standard VS Code command.
     // Arguments: [uri, position, locations]
     // Note: The position argument for showReferences is the position of the symbol being searched for (where to show the peek window).
+    //
+    // WARNING: 'editor.action.showReferences' requires `vscode.Uri` objects for arguments in VS Code, but the LSP server sends JSON strings.
+    // Without client-side middleware to convert strings to Uris, this command will fail in VS Code.
+    // For now, we omit the command execution to prevent runtime errors, providing only the information (reference count).
+    /*
     codeLens.command = {
         title: title,
         command: 'editor.action.showReferences',
         arguments: [data.uri, data.position, locations]
+    };
+    */
+
+    // Set a title without a command (informational only)
+    codeLens.command = {
+        title: title,
+        command: ''
     };
 
     return codeLens;

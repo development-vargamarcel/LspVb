@@ -95,4 +95,4 @@ Displays parameter names inline for function and subroutine calls.
 
 ## 14. Code Lens
 Displays the number of references for classes, methods, and properties above their definition.
-- Click on the code lens to find all references.
+- Currently informational only (displays count).

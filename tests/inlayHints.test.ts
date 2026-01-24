@@ -70,4 +70,22 @@ End Sub
         expect(hints[0].label).to.equal('msg:');
         expect(hints[1].label).to.equal('code:');
     });
+
+    it('should ignore characters in comments', () => {
+        const content = `
+Sub MyFunc(a As Integer)
+End Sub
+
+Sub Main()
+    MyFunc(1) ' comment with )
+End Sub
+`;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, content);
+        const params: any = { textDocument: { uri: document.uri }, range: {} };
+
+        const hints = onInlayHints(params, document);
+
+        expect(hints).to.have.lengthOf(1);
+        expect(hints[0].label).to.equal('a:');
+    });
 });
