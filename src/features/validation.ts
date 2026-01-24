@@ -1,10 +1,4 @@
-import {
-    Diagnostic,
-    DiagnosticSeverity,
-    TextDocument,
-    Range,
-    DocumentSymbol
-} from 'vscode-languageserver/node';
+import { Diagnostic, DiagnosticSeverity, TextDocument, Range } from 'vscode-languageserver/node';
 import {
     VAL_BLOCK_START_REGEX,
     VAL_IF_START_REGEX,
@@ -19,13 +13,10 @@ import {
     VAL_DIM_REGEX,
     VAL_CONST_REGEX,
     VAL_IF_LINE_REGEX,
-    VAL_THEN_REGEX,
-    VAL_RETURN_REGEX,
-    VAL_EXIT_REGEX
+    VAL_THEN_REGEX
 } from '../utils/regexes';
 import { stripComment } from '../utils/textUtils';
 import { Logger } from '../utils/logger';
-import { parseDocumentSymbols } from '../utils/parser';
 
 interface BlockContext {
     type: string;
@@ -42,45 +33,9 @@ export function validateTextDocument(textDocument: TextDocument): Diagnostic[] {
     Logger.log(`Starting validation for ${textDocument.uri}`);
     const validator = new Validator(textDocument);
     const diagnostics = validator.validate();
-
-    // Check for duplicate declarations using parsed symbols
-    const symbols = parseDocumentSymbols(textDocument);
-    const duplicateDiagnostics = checkDuplicates(symbols);
-    diagnostics.push(...duplicateDiagnostics);
-
     Logger.log(
         `Validation finished for ${textDocument.uri}. Found ${diagnostics.length} diagnostics.`
     );
-    return diagnostics;
-}
-
-/**
- * Checks for duplicate symbol declarations within the same scope.
- * @param symbols The list of symbols to check.
- * @returns A list of diagnostics for duplicates.
- */
-function checkDuplicates(symbols: DocumentSymbol[]): Diagnostic[] {
-    const diagnostics: Diagnostic[] = [];
-    const seen = new Map<string, DocumentSymbol>();
-
-    for (const sym of symbols) {
-        const name = sym.name.toLowerCase();
-        if (seen.has(name)) {
-            // Report error on the current symbol
-            diagnostics.push({
-                severity: DiagnosticSeverity.Error,
-                range: sym.selectionRange,
-                message: `Symbol '${sym.name}' is already declared in this scope.`,
-                source: 'SimpleVB'
-            });
-        } else {
-            seen.set(name, sym);
-        }
-
-        if (sym.children) {
-            diagnostics.push(...checkDuplicates(sym.children));
-        }
-    }
     return diagnostics;
 }
 
@@ -97,10 +52,6 @@ class Validator {
         this.lines = document.getText().split(/\r?\n/);
     }
 
-    /**
-     * Runs the validation process.
-     * @returns A list of diagnostics.
-     */
     public validate(): Diagnostic[] {
         Logger.debug('Validator: Starting line-by-line validation.');
         for (let i = 0; i < this.lines.length; i++) {
@@ -117,12 +68,6 @@ class Validator {
         return this.diagnostics;
     }
 
-    /**
-     * Validates syntax on a single line (e.g., missing Then, type declarations).
-     * @param trimmed The trimmed line content (no comments).
-     * @param lineIndex The line number.
-     * @param rawLine The original line content.
-     */
     private validateSyntax(trimmed: string, lineIndex: number, rawLine: string) {
         // Check for "If ... " without "Then"
         if (VAL_IF_LINE_REGEX.test(rawLine)) {
@@ -152,102 +97,8 @@ class Validator {
                 DiagnosticSeverity.Error
             );
         }
-
-        // Check for Return validity
-        if (VAL_RETURN_REGEX.test(trimmed)) {
-            this.validateReturn(trimmed, lineIndex);
-        }
-
-        // Check for Exit validity
-        const exitMatch = VAL_EXIT_REGEX.exec(trimmed);
-        if (exitMatch) {
-            this.validateExit(exitMatch[1], lineIndex);
-        }
     }
 
-    /**
-     * Validates Return statements.
-     * @param trimmed The trimmed line.
-     * @param lineIndex The line number.
-     */
-    private validateReturn(trimmed: string, lineIndex: number) {
-        const parent = this.findParentBlock(['Function', 'Sub', 'Property']);
-        if (!parent) {
-            this.addDiagnostic(
-                lineIndex,
-                "'Return' statement must be inside a Function, Sub, or Property.",
-                DiagnosticSeverity.Error
-            );
-            return;
-        }
-
-        const hasValue = trimmed.length > 6 && trimmed.substring(6).trim().length > 0;
-
-        if (parent.type.toLowerCase() === 'sub') {
-            if (hasValue) {
-                this.addDiagnostic(
-                    lineIndex,
-                    "'Return' in a Sub cannot return a value.",
-                    DiagnosticSeverity.Error
-                );
-            }
-        } else if (
-            parent.type.toLowerCase() === 'function' ||
-            parent.type.toLowerCase() === 'property'
-        ) {
-            if (!hasValue) {
-                this.addDiagnostic(
-                    lineIndex,
-                    "'Return' in a Function/Property must return a value.",
-                    DiagnosticSeverity.Error
-                );
-            }
-        }
-    }
-
-    /**
-     * Validates Exit statements.
-     * @param type The type to exit (Sub, Function, Do, etc.).
-     * @param lineIndex The line number.
-     */
-    private validateExit(type: string, lineIndex: number) {
-        // For 'Exit Sub', we need a 'Sub' in the stack.
-        // For 'Exit Do', we need a 'Do' in the stack.
-        // The regex captures the type.
-
-        // Map Property to Property (case insensitive check handled by findParentBlock)
-        const parent = this.findParentBlock([type]);
-        if (!parent) {
-            this.addDiagnostic(
-                lineIndex,
-                `'Exit ${type}' must be inside a '${type}' block.`,
-                DiagnosticSeverity.Error
-            );
-        }
-    }
-
-    /**
-     * Finds the nearest parent block of one of the allowed types.
-     * @param allowedTypes The types of blocks to search for.
-     * @returns The found block context or null.
-     */
-    private findParentBlock(allowedTypes: string[]): BlockContext | null {
-        const lowerAllowed = allowedTypes.map((t) => t.toLowerCase());
-        for (let i = this.stack.length - 1; i >= 0; i--) {
-            const block = this.stack[i];
-            if (lowerAllowed.includes(block.type.toLowerCase())) {
-                return block;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Validates block structure (start/end matching).
-     * @param trimmed The trimmed line content.
-     * @param lineIndex The line number.
-     * @param rawLine The original line content.
-     */
     private validateStructure(trimmed: string, lineIndex: number, rawLine: string) {
         // 1. Check for End/Closing statements first
         if (this.handleBlockEnd(trimmed, lineIndex, rawLine)) {
@@ -258,13 +109,6 @@ class Validator {
         this.handleBlockStart(trimmed, lineIndex);
     }
 
-    /**
-     * Handles block closing statements.
-     * @param trimmed The trimmed line.
-     * @param lineIndex The line number.
-     * @param rawLine The original line.
-     * @returns True if the line was a closing statement.
-     */
     private handleBlockEnd(trimmed: string, lineIndex: number, rawLine: string): boolean {
         let match: RegExpMatchArray | null;
 
@@ -291,11 +135,6 @@ class Validator {
         return false;
     }
 
-    /**
-     * Handles block starting statements.
-     * @param trimmed The trimmed line.
-     * @param lineIndex The line number.
-     */
     private handleBlockStart(trimmed: string, lineIndex: number) {
         let match: RegExpMatchArray | null;
 
@@ -330,11 +169,6 @@ class Validator {
         }
     }
 
-    /**
-     * Determines if an 'If' statement is a block If or a single-line If.
-     * @param trimmed The trimmed line.
-     * @returns True if it's a block If.
-     */
     private isBlockIf(trimmed: string): boolean {
         if (!VAL_THEN_REGEX.test(trimmed)) {
             // Missing 'Then' -> Likely incomplete block If
@@ -351,22 +185,11 @@ class Validator {
         return afterThen === '' || afterThen.startsWith("'");
     }
 
-    /**
-     * Pushes a block type onto the stack.
-     * @param type The block type.
-     * @param line The line number.
-     */
     private pushStack(type: string, line: number) {
         Logger.debug(`Validator: Pushing stack '${type}' at line ${line}`);
         this.stack.push({ type, line });
     }
 
-    /**
-     * Checks if the closing statement matches the top of the stack.
-     * @param foundClosingType The type of the closing statement found.
-     * @param line The line number.
-     * @param content The full line content (for error messages).
-     */
     private checkStack(foundClosingType: string, line: number, content: string) {
         Logger.debug(`Validator: Checking stack for '${foundClosingType}' at line ${line}`);
         if (this.stack.length === 0) {
@@ -391,11 +214,6 @@ class Validator {
         }
     }
 
-    /**
-     * Gets the expected closing statement for a block type.
-     * @param type The block type.
-     * @returns The expected closing string.
-     */
     private getExpectedClosing(type: string): string {
         switch (type.toLowerCase()) {
             case 'if':
@@ -418,20 +236,11 @@ class Validator {
                 return 'End Module';
             case 'property':
                 return 'End Property';
-            case 'structure':
-                return 'End Structure';
-            case 'interface':
-                return 'End Interface';
-            case 'enum':
-                return 'End Enum';
             default:
                 return 'End ' + type;
         }
     }
 
-    /**
-     * Checks for any unclosed blocks after processing all lines.
-     */
     private checkUnclosedBlocks() {
         for (const item of this.stack) {
             this.addDiagnostic(
@@ -442,12 +251,6 @@ class Validator {
         }
     }
 
-    /**
-     * Adds a diagnostic to the list.
-     * @param line The line number.
-     * @param message The error message.
-     * @param severity The severity.
-     */
     private addDiagnostic(line: number, message: string, severity: DiagnosticSeverity) {
         this.diagnostics.push({
             severity,

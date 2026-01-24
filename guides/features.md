@@ -7,7 +7,6 @@ Context-aware suggestions for:
 - **Keywords**: Standard VB keywords (`If`, `Select`, `Function`, `Dim`, etc.).
 - **Symbols**: User-defined Subroutines, Functions, Variables, and Constants found in the current document.
 - **Snippets**: Pre-defined templates for common structures (`If...Then`, `For...Next`, `Try...Catch`).
-- **End Logic**: Intelligent suggestions for closing statements (e.g., typing `End` suggests `If`, `Sub`, `Class`, etc. based on context).
 
 ## 2. Diagnostics (Validation)
 Real-time error checking for:
@@ -19,22 +18,14 @@ Real-time error checking for:
     - Unclosed blocks (e.g., `If` without `End If`).
     - Mismatched blocks (e.g., closing a `For` loop with `End Sub`).
     - Unexpected closing statements.
-- **Flow Control**:
-    - `Return`: Validates that `Return` is used within a Function, Sub, or Property. Checks if a value is returned (required for Function/Property, forbidden for Sub).
-    - `Exit`: Validates that `Exit Sub`, `Exit For`, etc., are used within the correct block type.
-- **Scope**:
-    - Duplicate Declarations: Warns if a symbol name is reused within the same scope.
 
 ## 3. Document Outline (Symbols)
 Provides a hierarchical, tree-based view of the symbols in the file.
-- **Hierarchy**: Methods, properties, and fields are nested under their parent Class, Module, Structure, Interface, or Enum. Variables are nested under their containing Method.
+- **Hierarchy**: Methods, properties, and fields are nested under their parent Class or Module. Variables are nested under their containing Method.
 - **Supported Symbols**:
     - Classes / Modules
     - Methods (Sub, Function)
     - Properties
-    - Structures
-    - Interfaces
-    - Enums
     - Variables (Dim)
     - Constants (Const)
     - Fields
@@ -49,7 +40,6 @@ Automatically formats the document by adjusting indentation.
 ## 5. Folding
 Allows collapsing of code blocks to improve readability. Supported blocks:
 - `Sub` / `Function` / `Property`
-- `Class` / `Module` / `Structure` / `Interface` / `Enum`
 - `If...End If`
 - `For...Next`
 - `Do...Loop`
