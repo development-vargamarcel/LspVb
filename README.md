@@ -12,6 +12,7 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Hover Information**: Basic hover support for keywords and user-defined symbols.
 - **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.).
 - **Formatting**: Auto-formatting support for indentation of blocks and nested structures.
+- **Range Formatting**: Supports formatting a specific selection of code.
 - **Go to Definition**: Jump to the definition of a symbol within the same file.
 - **Find References**: Find all occurrences of a symbol within the same file (scope-aware).
 - **Rename**: Rename a symbol and all its occurrences (scope-aware).

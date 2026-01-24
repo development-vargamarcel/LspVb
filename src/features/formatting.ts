@@ -154,14 +154,17 @@ export function formatRange(
     );
     const allEdits = formatDocument(document, options);
 
+    // Adjust end line if the range ends at character 0 (exclusive)
+    let endLine = range.end.line;
+    if (range.end.character === 0 && endLine > range.start.line) {
+        endLine--;
+    }
+
     const rangeEdits = allEdits.filter((edit) => {
         // Check if edit overlaps with range
         // Since we are formatting full lines, we check if edit line is within range lines.
-        // Range start line is inclusive, end line is inclusive (usually).
-        // VS Code usually sends selection range.
-
         const editLine = edit.range.start.line;
-        return editLine >= range.start.line && editLine <= range.end.line;
+        return editLine >= range.start.line && editLine <= endLine;
     });
 
     Logger.debug(`Range Formatting: Filtered to ${rangeEdits.length} edits.`);
