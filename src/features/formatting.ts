@@ -149,7 +149,9 @@ export function formatRange(
     range: Range,
     options: FormattingOptions
 ): TextEdit[] {
-    Logger.log(`Range formatting requested for ${document.uri} at ${range.start.line}-${range.end.line}`);
+    Logger.log(
+        `Range formatting requested for ${document.uri} at ${range.start.line}-${range.end.line}`
+    );
     const allEdits = formatDocument(document, options);
 
     const rangeEdits = allEdits.filter((edit) => {
