@@ -71,4 +71,51 @@ describe('Completion Feature', () => {
         // Should NOT have myVar
         expect(items.find(i => i.label === 'myVar')).to.not.exist;
     });
+
+    it('should suggest correct closing statement for End', () => {
+        const text = `
+Sub MySub()
+    End
+End Sub
+        `;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+        // "End " is at line 2. Position 8.
+        const position = Position.create(2, 8);
+
+        const params: any = {
+            textDocument: { uri: 'file:///test.vb' },
+            position: position
+        };
+
+        const items = onCompletion(params, document);
+
+        // Should suggest "Sub" (since we are in Sub MySub)
+        const subItem = items.find(i => i.label === 'Sub');
+        expect(subItem).to.exist;
+        expect(subItem!.sortText).to.equal('!');
+    });
+
+    it('should suggest correct closing statement for End in nested block', () => {
+        const text = `
+Sub MySub()
+    If True Then
+        End
+    End If
+End Sub
+        `;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+        const position = Position.create(3, 12); // "End "
+
+        const params: any = {
+            textDocument: { uri: 'file:///test.vb' },
+            position: position
+        };
+
+        const items = onCompletion(params, document);
+
+        // Should suggest "If" (since we are in If block)
+        const ifItem = items.find(i => i.label === 'If');
+        expect(ifItem).to.exist;
+        expect(ifItem!.sortText).to.equal('!');
+    });
 });

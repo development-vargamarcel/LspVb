@@ -292,6 +292,7 @@ export function findSymbolAtPosition(
     name: string,
     position: Position
 ): DocumentSymbol | null {
+    Logger.debug(`Parser: Finding symbol '${name}' at ${position.line}:${position.character}`);
     // 1. Find the deepest symbol that contains the position
     let currentScope = symbols;
 
@@ -452,6 +453,60 @@ export function findSymbolInScope(
 ): DocumentSymbol | null {
     const visible = getVisibleSymbols(symbols, position);
     return visible.find((s) => s.name.toLowerCase() === name.toLowerCase()) || null;
+}
+
+/**
+ * Finds the deepest symbol that contains the given position.
+ * @param symbols The root document symbols.
+ * @param position The position.
+ * @returns The containing symbol or null.
+ */
+export function getSymbolContainingPosition(
+    symbols: DocumentSymbol[],
+    position: Position
+): DocumentSymbol | null {
+    let currentScope = symbols;
+    let deepest: DocumentSymbol | null = null;
+
+    while (true) {
+        let foundChild = false;
+        for (const sym of currentScope) {
+            if (isPositionInRange(position, sym.range)) {
+                deepest = sym;
+                if (sym.children && sym.children.length > 0) {
+                    currentScope = sym.children;
+                    foundChild = true;
+                }
+                break;
+            }
+        }
+        if (!foundChild) break;
+    }
+    return deepest;
+}
+
+/**
+ * Finds the parent symbol of a given symbol in the document hierarchy.
+ *
+ * @param symbols The root document symbols.
+ * @param childSymbol The child symbol to find the parent for.
+ * @returns The parent DocumentSymbol or null if it's a root symbol or not found.
+ */
+export function findSymbolParent(
+    symbols: DocumentSymbol[],
+    childSymbol: DocumentSymbol
+): DocumentSymbol | null {
+    for (const sym of symbols) {
+        if (sym.children) {
+            if (sym.children.includes(childSymbol)) {
+                return sym;
+            }
+            // Recursive check
+            const found = findSymbolParent(sym.children, childSymbol);
+            if (found) return found;
+        }
+    }
+    return null;
 }
 
 /**

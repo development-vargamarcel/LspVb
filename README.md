@@ -13,11 +13,12 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.).
 - **Formatting**: Auto-formatting support for indentation of blocks and nested structures.
 - **Go to Definition**: Jump to the definition of a symbol within the same file.
-- **Find References**: Find all occurrences of a symbol within the same file.
-- **Rename**: Rename a symbol and all its occurrences.
+- **Find References**: Find all occurrences of a symbol within the same file (scope-aware).
+- **Rename**: Rename a symbol and all its occurrences (scope-aware).
 - **Code Actions**: Quick fixes for common errors (e.g., adding missing `Then`, `As`, or closing statements).
 - **Signature Help**: Parameter hints for function and subroutine calls.
 - **Semantic Tokens**: Syntax highlighting for different symbol types (classes, variables, etc.).
+- **Document Highlight**: Highlights all occurrences of a symbol in the editor.
 
 ## Architecture
 
@@ -56,6 +57,17 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
     ```bash
     node out/server.js --stdio
     ```
+
+## Troubleshooting
+
+### Enable Debug Logs
+
+The server sends log messages to the client.
+
+- **VS Code**: You can view these logs in the "Output" panel. Select "SimpleVB Language Server" (or the name you registered the server with) from the dropdown.
+- **Other Clients**: Check your client's documentation on how to view LSP `window/logMessage` output.
+
+The server logs `[Info]`, `[Warn]`, `[Error]`, and `[Debug]` messages. Debug messages provide detailed information about internal operations (validation steps, symbol parsing, etc.).
 
 ## Assumptions & Limitations
 
