@@ -13,6 +13,7 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
     definitionProvider: true,
     documentFormattingProvider: true,
     referencesProvider: true,
+    documentHighlightProvider: true,
     renameProvider: true,
     codeActionProvider: true,
     signatureHelpProvider: {

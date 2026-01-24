@@ -37,7 +37,9 @@ import {
     SignatureHelpParams,
     SignatureHelp,
     SemanticTokensParams,
-    SemanticTokens
+    SemanticTokens,
+    DocumentHighlightParams,
+    DocumentHighlight
 } from 'vscode-languageserver/node';
 
 import {
@@ -53,6 +55,7 @@ import { onRenameRequest } from './features/rename';
 import { onCodeAction } from './features/codeAction';
 import { onSignatureHelp } from './features/signatureHelp';
 import { onSemanticTokens } from './features/semanticTokens';
+import { onDocumentHighlight } from './features/documentHighlight';
 import { parseDocumentSymbols } from './utils/parser';
 import { formatDocument } from './features/formatting';
 import { Logger } from './utils/logger';
@@ -194,6 +197,16 @@ connection.onReferences(
         Logger.log(`References requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
         return onReferences(params, document);
     }, [], 'References')
+);
+
+// This handler provides document highlight
+connection.onDocumentHighlight(
+    safeHandler((params: DocumentHighlightParams): DocumentHighlight[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        Logger.log(`Document Highlight requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
+        return onDocumentHighlight(params, document);
+    }, [], 'DocumentHighlight')
 );
 
 // This handler provides rename support

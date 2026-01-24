@@ -7,7 +7,12 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { KEYWORDS } from '../keywords';
-import { parseDocumentSymbols, getVisibleSymbols, findSymbolInScope } from '../utils/parser';
+import {
+    parseDocumentSymbols,
+    getVisibleSymbols,
+    findSymbolInScope,
+    getSymbolContainingPosition
+} from '../utils/parser';
 import { SNIPPETS } from '../snippets';
 import { Logger } from '../utils/logger';
 
@@ -184,12 +189,47 @@ export function onCompletion(
     const prevWord = text.substring(start, end).toLowerCase();
 
     const isTypeContext = prevWord === 'as';
+    const isEndContext = prevWord === 'end';
 
     if (isTypeContext) {
         Logger.debug('Completion: Type context detected (As ...).');
     }
+    if (isEndContext) {
+        Logger.debug('Completion: End context detected.');
+    }
 
     Logger.debug(`Completion: Generating items. isTypeContext=${isTypeContext}`);
+
+    // Special handling for "End" context
+    if (isEndContext) {
+        const container = getSymbolContainingPosition(symbols, params.position);
+        if (container) {
+            let closing = '';
+            // Check based on Kind or Detail
+            if (container.kind === SymbolKind.Namespace) {
+                // Block like If, Select
+                if (container.name === 'If') closing = 'If';
+                else if (container.name === 'Select') closing = 'Select';
+            } else {
+                // Sub, Function, etc.
+                if (container.detail) {
+                    const firstWord = container.detail.split(/[\s(]/)[0]; // "Sub", "Function"
+                    if (['Sub', 'Function', 'Class', 'Module', 'Property'].includes(firstWord)) {
+                        closing = firstWord;
+                    }
+                }
+            }
+
+            if (closing) {
+                items.push({
+                    label: closing,
+                    kind: CompletionItemKind.Keyword,
+                    detail: `Closes ${container.name}`,
+                    sortText: '!' // High priority
+                });
+            }
+        }
+    }
 
     // Add Keywords
     for (const key in KEYWORDS) {

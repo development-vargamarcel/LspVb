@@ -1,7 +1,8 @@
-import { Location, ReferenceParams } from 'vscode-languageserver/node';
+import { Location, ReferenceParams, SymbolKind, Range } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
 import { getWordAtPosition } from '../utils/textUtils';
+import { parseDocumentSymbols, findSymbolAtPosition, findSymbolParent } from '../utils/parser';
 
 /**
  * Handles Find References requests.
@@ -22,11 +23,36 @@ export function onReferences(params: ReferenceParams, document: TextDocument): L
 
     Logger.debug(`References: Searching for '${word}'`);
 
+    const symbols = parseDocumentSymbols(document);
+    const definition = findSymbolAtPosition(symbols, word, params.position);
+
+    let searchRange: Range | null = null;
+
+    if (definition) {
+        const parent = findSymbolParent(symbols, definition);
+        if (parent && isMethodLike(parent.kind)) {
+            // Local variable or parameter
+            searchRange = parent.range;
+            Logger.debug(
+                `References: Symbol '${word}' is local to '${parent.name}'. Restricting search to lines ${searchRange.start.line}-${searchRange.end.line}.`
+            );
+        }
+    }
+
     const text = document.getText();
     const lines = text.split(/\r?\n/);
     const locations: Location[] = [];
 
-    for (let i = 0; i < lines.length; i++) {
+    let startLine = 0;
+    let endLine = lines.length;
+
+    if (searchRange) {
+        startLine = searchRange.start.line;
+        endLine = searchRange.end.line + 1;
+        if (endLine > lines.length) endLine = lines.length;
+    }
+
+    for (let i = startLine; i < endLine; i++) {
         const line = lines[i];
         let match;
         // Search all occurrences in the line
@@ -35,16 +61,8 @@ export function onReferences(params: ReferenceParams, document: TextDocument): L
 
         while ((match = globalRegex.exec(line)) !== null) {
             // Check if it's inside a comment?
-            // Simple check: if there is a ' before this match on the line, it might be a comment.
-            // But ' can be in a string too.
-            // Using a simplified check based on `stripComment` logic from other files might be good,
-            // but `stripComment` removes the comment, making indices mismatch.
-            // For now, let's just ignore the comment part of the line if possible.
-
             const commentIndex = line.indexOf("'");
             if (commentIndex !== -1 && match.index > commentIndex) {
-                // It's likely in a comment (assuming ' is not in a string)
-                // This is a "Simple" VB server, so simple comment detection is acceptable.
                 continue;
             }
 
@@ -60,4 +78,17 @@ export function onReferences(params: ReferenceParams, document: TextDocument): L
 
     Logger.debug(`References: Found ${locations.length} occurrences.`);
     return locations;
+}
+
+/**
+ * Checks if the symbol kind is method-like (Method, Function, Constructor, Property).
+ * Locals defined inside these should be scoped to them.
+ */
+function isMethodLike(kind: SymbolKind): boolean {
+    return (
+        kind === SymbolKind.Method ||
+        kind === SymbolKind.Function ||
+        kind === SymbolKind.Constructor ||
+        kind === SymbolKind.Property
+    );
 }

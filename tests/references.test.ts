@@ -97,4 +97,39 @@ x = 1
         // The implementation tries to ignore comments.
         expect(references).to.have.lengthOf(2);
     });
+
+    it('should respect scope (local variables)', () => {
+        const text = `
+Sub A()
+    Dim x As Integer
+    x = 1
+End Sub
+
+Sub B()
+    Dim x As Integer
+    x = 2
+End Sub
+        `;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+        // Position on 'x' in Sub A (line 3)
+        // Line 0: empty
+        // Line 1: Sub A
+        // Line 2: Dim x
+        // Line 3: x = 1
+        const position = Position.create(3, 4);
+
+        const params: ReferenceParams = {
+            textDocument: { uri: 'file:///test.vb' },
+            position: position,
+            context: { includeDeclaration: true }
+        };
+
+        const references = onReferences(params, document);
+
+        // Should find 'Dim x' (line 2) and 'x = 1' (line 3) in Sub A.
+        // Should NOT find 'Dim x' (line 7) or 'x = 2' (line 8) in Sub B.
+        expect(references).to.have.lengthOf(2);
+        expect(references[0].range.start.line).to.equal(2);
+        expect(references[1].range.start.line).to.equal(3);
+    });
 });
