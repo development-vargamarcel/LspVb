@@ -1,4 +1,5 @@
 import { ServerCapabilities, TextDocumentSyncKind } from 'vscode-languageserver/node';
+import { tokenTypes, tokenModifiers } from './features/semanticTokens';
 
 export const SERVER_CAPABILITIES: ServerCapabilities = {
     textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -16,6 +17,13 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
     completionProvider: {
         resolveProvider: true,
         triggerCharacters: ['.']
+    },
+    semanticTokensProvider: {
+        legend: {
+            tokenTypes: tokenTypes,
+            tokenModifiers: tokenModifiers
+        },
+        full: true
     },
     workspace: {
         workspaceFolders: {

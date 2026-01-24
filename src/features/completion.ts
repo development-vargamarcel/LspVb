@@ -6,7 +6,7 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { KEYWORDS } from '../keywords';
-import { parseDocumentSymbols } from '../utils/parser';
+import { parseDocumentSymbols, getVisibleSymbols, findSymbolInScope } from '../utils/parser';
 import { SNIPPETS } from '../snippets';
 
 export function onCompletion(
@@ -76,7 +76,7 @@ export function onCompletion(
             let currentSymbol: any = null;
 
             // Resolve the first part (variable or class)
-            currentSymbol = findSymbolRecursive(symbols, parts[0].toLowerCase());
+            currentSymbol = findSymbolInScope(symbols, parts[0].toLowerCase(), params.position);
 
             // Resolve subsequent parts
             for (let i = 0; i < parts.length; i++) {
@@ -105,7 +105,7 @@ export function onCompletion(
                 }
 
                 // Find the Type definition (Class/Structure)
-                const typeSymbol = findSymbolRecursive(symbols, typeName);
+                const typeSymbol = findSymbolInScope(symbols, typeName, params.position);
                 if (!typeSymbol) {
                     currentSymbol = null;
                     break;
@@ -211,8 +211,9 @@ export function onCompletion(
     }
 
     // Add Symbols from Document
-    // const symbols = parseDocumentSymbols(document); // Already parsed above
-    for (const sym of symbols) {
+    // Use getVisibleSymbols to show only relevant symbols from current scope
+    const visibleSymbols = getVisibleSymbols(symbols, params.position);
+    for (const sym of visibleSymbols) {
         // For symbols, we might also want to filter.
         // If 'As ...', we only want Classes/Enums/Modules?
         // Variables/Functions are not types.
@@ -256,19 +257,6 @@ export function onCompletionResolve(item: CompletionItem): CompletionItem {
         item.documentation = KEYWORDS[data].documentation;
     }
     return item;
-}
-
-function findSymbolRecursive(symbols: any[], name: string): any | null {
-    for (const sym of symbols) {
-        if (sym.name.toLowerCase() === name) {
-            return sym;
-        }
-        if (sym.children) {
-            const childMatch = findSymbolRecursive(sym.children, name);
-            if (childMatch) return childMatch;
-        }
-    }
-    return null;
 }
 
 function mapSymbolKindToCompletionKind(kind: SymbolKind): CompletionItemKind {

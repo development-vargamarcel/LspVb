@@ -71,7 +71,7 @@ describe('Completion Feature', () => {
         Dim x As
         `;
         const document = TextDocument.create('file:///test.vb', 'vb', 1, content);
-        const position = Position.create(2, 17);
+        const position = Position.create(2, 17); // After 'As '
 
         const items = onCompletion({ textDocument: { uri: document.uri }, position }, document);
 

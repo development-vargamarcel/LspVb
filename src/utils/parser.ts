@@ -369,6 +369,67 @@ export function findSymbolAtPosition(
     return null;
 }
 
+/**
+ * Returns a list of all symbols visible at the given position, respecting scope and shadowing.
+ * @param symbols The root document symbols.
+ * @param position The position to check visibility from.
+ * @returns An array of visible symbols.
+ */
+export function getVisibleSymbols(symbols: DocumentSymbol[], position: Position): DocumentSymbol[] {
+    const scopeChain: DocumentSymbol[] = [];
+    let currentScope = symbols;
+
+    // 1. Build scope chain (root -> deepest)
+    while (true) {
+        let foundChild = false;
+        for (const sym of currentScope) {
+            if (isPositionInRange(position, sym.range)) {
+                scopeChain.push(sym);
+                if (sym.children && sym.children.length > 0) {
+                    currentScope = sym.children;
+                    foundChild = true;
+                }
+                break;
+            }
+        }
+        if (!foundChild) break;
+    }
+
+    const visibleSymbols: Map<string, DocumentSymbol> = new Map();
+
+    // 2. Add root symbols (globals) first
+    for (const sym of symbols) {
+        visibleSymbols.set(sym.name.toLowerCase(), sym);
+    }
+
+    // 3. Walk down the scope chain, overwriting with locals (shadowing)
+    for (const scope of scopeChain) {
+        if (scope.children) {
+            for (const child of scope.children) {
+                visibleSymbols.set(child.name.toLowerCase(), child);
+            }
+        }
+    }
+
+    return Array.from(visibleSymbols.values());
+}
+
+/**
+ * Finds a specific symbol by name within the visibility scope of the given position.
+ * @param symbols The root document symbols.
+ * @param name The name of the symbol to find.
+ * @param position The position to check visibility from.
+ * @returns The matching symbol or null.
+ */
+export function findSymbolInScope(
+    symbols: DocumentSymbol[],
+    name: string,
+    position: Position
+): DocumentSymbol | null {
+    const visible = getVisibleSymbols(symbols, position);
+    return visible.find((s) => s.name.toLowerCase() === name.toLowerCase()) || null;
+}
+
 function isPositionInRange(pos: Position, range: any): boolean {
     if (pos.line < range.start.line || pos.line > range.end.line) return false;
     if (pos.line === range.start.line && pos.character < range.start.character) return false;
