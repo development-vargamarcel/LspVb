@@ -52,6 +52,14 @@ tokenTypes.forEach((type, index) => tokenTypesMap.set(type, index));
 const tokenModifiersMap = new Map<string, number>();
 tokenModifiers.forEach((modifier, index) => tokenModifiersMap.set(modifier, index));
 
+/**
+ * Handles semantic tokens requests.
+ * Computes semantic tokens for the document to support syntax highlighting.
+ *
+ * @param params The semantic tokens parameters.
+ * @param document The text document.
+ * @returns A SemanticTokens object containing the encoded tokens.
+ */
 export function onSemanticTokens(
     params: SemanticTokensParams,
     document: TextDocument

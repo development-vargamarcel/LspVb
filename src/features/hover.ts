@@ -4,6 +4,14 @@ import { KEYWORDS } from '../keywords';
 import { parseDocumentSymbols, findSymbolAtPosition } from '../utils/parser';
 import { getWordAtPosition } from '../utils/textUtils';
 
+/**
+ * Handles hover requests.
+ * Displays information about the symbol under the cursor (keywords or user-defined symbols).
+ *
+ * @param params The hover parameters (position).
+ * @param document The text document.
+ * @returns A Hover object with markdown content, or null if no info found.
+ */
 export function onHover(params: HoverParams, document: TextDocument): Hover | null {
     const word = getWordAtPosition(document, params.position);
     if (!word) {

@@ -1,3 +1,7 @@
+/**
+ * Main entry point for the SimpleVB Language Server.
+ * Handles LSP connection setup, feature registration, and event delegation.
+ */
 import {
 	createConnection,
 	TextDocuments,
@@ -131,6 +135,7 @@ connection.onHover(
     safeHandler((params: HoverParams): Hover | null => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return null;
+        Logger.log(`Hover requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
         return onHover(params, document);
     }, null, 'Hover')
 );
@@ -140,6 +145,7 @@ connection.onDocumentSymbol(
     safeHandler((params: DocumentSymbolParams): DocumentSymbol[] => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return [];
+        Logger.log(`Document Symbols requested for ${params.textDocument.uri}`);
         return parseDocumentSymbols(document);
     }, [], 'DocumentSymbol')
 );
@@ -149,6 +155,7 @@ connection.onFoldingRanges(
     safeHandler((params: FoldingRangeParams): FoldingRange[] => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return [];
+        Logger.log(`Folding Ranges requested for ${params.textDocument.uri}`);
         return onFoldingRanges(params, document);
     }, [], 'FoldingRanges')
 );
@@ -158,6 +165,7 @@ connection.onDefinition(
     safeHandler((params: DefinitionParams): Definition | null => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return null;
+        Logger.log(`Definition requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
         return onDefinition(params, document);
     }, null, 'Definition')
 );
@@ -167,6 +175,7 @@ connection.onReferences(
     safeHandler((params: ReferenceParams): Location[] => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return [];
+        Logger.log(`References requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
         return onReferences(params, document);
     }, [], 'References')
 );
@@ -176,6 +185,7 @@ connection.onRenameRequest(
     safeHandler((params: RenameParams): WorkspaceEdit | null => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return null;
+        Logger.log(`Rename requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character} to '${params.newName}'`);
         return onRenameRequest(params, document);
     }, null, 'Rename')
 );
@@ -185,6 +195,7 @@ connection.onCodeAction(
     safeHandler((params: CodeActionParams): (Command | CodeAction)[] => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return [];
+        Logger.log(`Code Action requested for ${params.textDocument.uri}`);
         return onCodeAction(params, document);
     }, [], 'CodeAction')
 );
@@ -194,6 +205,7 @@ connection.onSignatureHelp(
     safeHandler((params: SignatureHelpParams): SignatureHelp | null => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return null;
+        Logger.log(`Signature Help requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
         return onSignatureHelp(params, document);
     }, null, 'SignatureHelp')
 );
@@ -203,6 +215,7 @@ connection.languages.semanticTokens.on(
     safeHandler((params: SemanticTokensParams): SemanticTokens => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return { data: [] };
+        Logger.log(`Semantic Tokens requested for ${params.textDocument.uri}`);
         return onSemanticTokens(params, document);
     }, { data: [] }, 'SemanticTokens')
 );

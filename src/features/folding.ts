@@ -12,6 +12,14 @@ import {
     FOLD_DO_START_REGEX
 } from '../utils/regexes';
 
+/**
+ * Handles folding range requests.
+ * Identifies collapsible blocks (Sub, Function, If, For, etc.) in the document.
+ *
+ * @param params The folding range parameters.
+ * @param document The text document.
+ * @returns An array of FoldingRanges.
+ */
 export function onFoldingRanges(
     params: FoldingRangeParams,
     document: TextDocument

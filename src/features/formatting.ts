@@ -15,6 +15,14 @@ import {
     FMT_CASE_REGEX
 } from '../utils/regexes';
 
+/**
+ * Handles document formatting requests.
+ * Applies indentation rules and keyword casing/spacing.
+ *
+ * @param document The document to format.
+ * @param options Formatting options (tab size, insert spaces).
+ * @returns An array of TextEdits to apply the formatting.
+ */
 export function formatDocument(document: TextDocument, options: FormattingOptions): TextEdit[] {
     const text = document.getText();
     const lines = text.split(/\r?\n/);

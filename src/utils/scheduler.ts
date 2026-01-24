@@ -3,6 +3,10 @@ import { Connection } from 'vscode-languageserver/node';
 import { validateTextDocument } from '../features/validation';
 import { Logger } from './logger';
 
+/**
+ * Manages the scheduling of document validation to prevent excessive processing.
+ * Implements a debounce mechanism (200ms) so validation only runs after the user stops typing.
+ */
 export class ValidationScheduler {
     private validationTimers: Map<string, NodeJS.Timeout> = new Map();
     private connection: Connection;
@@ -11,6 +15,11 @@ export class ValidationScheduler {
         this.connection = connection;
     }
 
+    /**
+     * Schedules a validation run for the given document.
+     * If a validation is already pending, it is cancelled and restarted.
+     * @param document The text document to validate.
+     */
     public scheduleValidation(document: TextDocument) {
         const uri = document.uri;
         if (this.validationTimers.has(uri)) {
@@ -31,6 +40,10 @@ export class ValidationScheduler {
         this.validationTimers.set(uri, timer);
     }
 
+    /**
+     * Clears any pending validation for the given document.
+     * @param document The text document.
+     */
     public clear(document: TextDocument) {
         const uri = document.uri;
         if (this.validationTimers.has(uri)) {
