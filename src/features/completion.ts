@@ -33,6 +33,8 @@ export function onCompletion(
     const text = document.getText();
     const offset = document.offsetAt(params.position);
 
+    Logger.log(`Completion requested at ${params.textDocument.uri}:${params.position.line}`);
+
     const symbols = parseDocumentSymbols(document);
 
     // 1. Check for Member Access (Dot)
@@ -53,7 +55,7 @@ export function onCompletion(
     const isMemberAccess = scanIndex > 0 && text[scanIndex - 1] === '.';
 
     if (isMemberAccess) {
-        Logger.log('Completion: Member access detected.');
+        Logger.debug('Completion: Member access detected.');
         scanIndex--; // Move past the dot
         const parts: string[] = [];
 
@@ -90,6 +92,7 @@ export function onCompletion(
         }
 
         if (parts.length > 0) {
+            Logger.debug(`Completion: Resolving chain: ${parts.join('.')}`);
             let currentSymbol: DocumentSymbol | null = null;
 
             // Resolve the first part (variable or class)
@@ -104,7 +107,10 @@ export function onCompletion(
                 // Then return members of Address.
 
                 // If currentSymbol is a variable/property, we need its type.
-                if (!currentSymbol) break;
+                if (!currentSymbol) {
+                    Logger.debug(`Completion: Symbol '${parts[i]}' not found.`);
+                    break;
+                }
 
                 // Get type of current symbol
                 let typeName: string | null = null;
@@ -117,6 +123,7 @@ export function onCompletion(
                 }
 
                 if (!typeName) {
+                    Logger.debug(`Completion: Could not determine type of '${currentSymbol.name}'.`);
                     currentSymbol = null;
                     break;
                 }
@@ -124,6 +131,7 @@ export function onCompletion(
                 // Find the Type definition (Class/Structure)
                 const typeSymbol = findSymbolInScope(symbols, typeName, params.position);
                 if (!typeSymbol) {
+                    Logger.debug(`Completion: Type definition '${typeName}' not found.`);
                     currentSymbol = null;
                     break;
                 }
@@ -153,6 +161,9 @@ export function onCompletion(
                     // The result is `typeSymbol` which is the type of the last property.
                     // We want to return its children.
                     if (typeSymbol.children) {
+                        Logger.debug(
+                            `Completion: Found ${typeSymbol.children.length} members in '${typeSymbol.name}'.`
+                        );
                         for (const child of typeSymbol.children) {
                             items.push({
                                 label: child.name,
@@ -214,7 +225,18 @@ export function onCompletion(
                 // Sub, Function, etc.
                 if (container.detail) {
                     const firstWord = container.detail.split(/[\s(]/)[0]; // "Sub", "Function"
-                    if (['Sub', 'Function', 'Class', 'Module', 'Property'].includes(firstWord)) {
+                    if (
+                        [
+                            'Sub',
+                            'Function',
+                            'Class',
+                            'Module',
+                            'Property',
+                            'Structure',
+                            'Interface',
+                            'Enum'
+                        ].includes(firstWord)
+                    ) {
                         closing = firstWord;
                     }
                 }
@@ -283,7 +305,8 @@ export function onCompletion(
                 sym.kind !== SymbolKind.Class &&
                 sym.kind !== SymbolKind.Module &&
                 sym.kind !== SymbolKind.Interface &&
-                sym.kind !== SymbolKind.Enum
+                sym.kind !== SymbolKind.Enum &&
+                sym.kind !== SymbolKind.Struct
             ) {
                 shouldAdd = false;
             }
@@ -349,6 +372,12 @@ function mapSymbolKindToCompletionKind(kind: SymbolKind): CompletionItemKind {
             return CompletionItemKind.Field;
         case SymbolKind.Property:
             return CompletionItemKind.Property;
+        case SymbolKind.Struct:
+            return CompletionItemKind.Struct;
+        case SymbolKind.Interface:
+            return CompletionItemKind.Interface;
+        case SymbolKind.Enum:
+            return CompletionItemKind.Enum;
         default:
             return CompletionItemKind.Text;
     }
