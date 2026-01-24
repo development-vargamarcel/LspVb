@@ -1,5 +1,6 @@
 import { Location, ReferenceParams } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { Logger } from '../utils/logger';
 import { getWordAtPosition } from '../utils/textUtils';
 
 /**
@@ -12,6 +13,7 @@ import { getWordAtPosition } from '../utils/textUtils';
  * @returns An array of locations where the symbol is found.
  */
 export function onReferences(params: ReferenceParams, document: TextDocument): Location[] {
+    Logger.log(`References requested at ${params.position.line}:${params.position.character}`);
     const word = getWordAtPosition(document, params.position);
     if (!word) return [];
 

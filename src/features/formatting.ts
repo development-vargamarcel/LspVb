@@ -1,4 +1,5 @@
 import { TextDocument, TextEdit, FormattingOptions, Range } from 'vscode-languageserver/node';
+import { Logger } from '../utils/logger';
 import { formatLine, formatKeywordCasing } from '../utils/textUtils';
 import {
     VAL_BLOCK_START_REGEX,
@@ -24,6 +25,7 @@ import {
  * @returns An array of TextEdits to apply the formatting.
  */
 export function formatDocument(document: TextDocument, options: FormattingOptions): TextEdit[] {
+    Logger.log('Formatting requested for ' + document.uri);
     const text = document.getText();
     const lines = text.split(/\r?\n/);
     const edits: TextEdit[] = [];

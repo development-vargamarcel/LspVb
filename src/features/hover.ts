@@ -1,5 +1,6 @@
 import { Hover, HoverParams, MarkupKind, SymbolKind } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { Logger } from '../utils/logger';
 import { KEYWORDS } from '../keywords';
 import { parseDocumentSymbols, findSymbolAtPosition } from '../utils/parser';
 import { getWordAtPosition } from '../utils/textUtils';
@@ -13,6 +14,7 @@ import { getWordAtPosition } from '../utils/textUtils';
  * @returns A Hover object with markdown content, or null if no info found.
  */
 export function onHover(params: HoverParams, document: TextDocument): Hover | null {
+    Logger.log(`Hover requested at ${params.position.line}:${params.position.character}`);
     const word = getWordAtPosition(document, params.position);
     if (!word) {
         return null;

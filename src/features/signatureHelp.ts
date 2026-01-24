@@ -4,6 +4,7 @@ import {
     ParameterInformation
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { Logger } from '../utils/logger';
 import { parseDocumentSymbols, findSymbolInScope } from '../utils/parser';
 
 /**
@@ -18,6 +19,7 @@ export function onSignatureHelp(
     params: SignatureHelpParams,
     document: TextDocument
 ): SignatureHelp | null {
+    Logger.log(`Signature help requested at ${params.position.line}:${params.position.character}`);
     const text = document.getText();
     const offset = document.offsetAt(params.position);
 

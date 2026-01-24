@@ -31,13 +31,15 @@ Each feature is isolated in its own file:
 - **`validation.ts`**: Implements the `Validator` class. It iterates through document lines, checking for syntax errors (regex-based) and block structure consistency (stack-based).
 - **`completion.ts`**: Aggregates keywords, document symbols, and snippets into completion items.
 - **`formatting.ts`**: Implements a custom indentation logic based on block start/end patterns.
-- **`definition.ts`, `hover.ts`, `folding.ts`**: Handle respective LSP requests.
+- **`definition.ts`, `hover.ts`, `folding.ts`, `references.ts`, `rename.ts`, `codeAction.ts`, `signatureHelp.ts`, `semanticTokens.ts`**: Handle respective LSP requests.
 
 ### 3. Utilities (`src/utils/`)
 - **`parser.ts`**: A regex-based symbol parser. It extracts Subs, Functions, Classes, and Variables for the Outline view and Code Completion.
 - **`regexes.ts`**: Centralized repository of all regular expressions used across the application. This ensures consistency between parsing, validation, and formatting.
 - **`textUtils.ts`**: Text processing helpers, such as `stripComment` which safely removes comments while respecting string literals.
 - **`scheduler.ts`**: Implements a debounce mechanism for validation to avoid checking the document on every single keystroke.
+- **`logger.ts`**: A simple logging utility that sends log messages to the client.
+- **`safeHandler.ts`**: A wrapper for LSP handlers to ensure safe execution and consistent error logging.
 
 ## Data Flow
 
