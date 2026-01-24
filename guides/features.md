@@ -87,3 +87,12 @@ Shows parameter information when typing a function call.
 ## 12. Semantic Tokens
 Provides semantic highlighting for symbols to enable better colorization in the editor.
 - Distinguishes between Classes, Methods, Variables, Keywords, etc.
+
+## 13. Inlay Hints
+Displays parameter names inline for function and subroutine calls.
+- Helps identify arguments in long or complex function calls.
+- Example: `MyFunction(x: 10, y: "test")`
+
+## 14. Code Lens
+Displays the number of references for classes, methods, and properties above their definition.
+- Currently informational only (displays count).

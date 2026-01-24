@@ -77,7 +77,24 @@ export function onReferences(params: ReferenceParams, document: TextDocument): L
     }
 
     Logger.debug(`References: Found ${locations.length} occurrences.`);
+
+    if (params.context && !params.context.includeDeclaration && definition) {
+        return locations.filter((loc) => !rangesEqual(loc.range, definition.selectionRange));
+    }
+
     return locations;
+}
+
+/**
+ * Checks if two ranges are equal.
+ */
+function rangesEqual(r1: Range, r2: Range): boolean {
+    return (
+        r1.start.line === r2.start.line &&
+        r1.start.character === r2.start.character &&
+        r1.end.line === r2.end.line &&
+        r1.end.character === r2.end.character
+    );
 }
 
 /**

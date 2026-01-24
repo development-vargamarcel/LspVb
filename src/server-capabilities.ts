@@ -31,6 +31,12 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
         },
         full: true
     },
+    inlayHintProvider: {
+        resolveProvider: false
+    },
+    codeLensProvider: {
+        resolveProvider: true
+    },
     workspace: {
         workspaceFolders: {
             supported: true
