@@ -6,6 +6,7 @@ import {
     DocumentSymbol
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { Logger } from '../utils/logger';
 import { parseDocumentSymbols } from '../utils/parser';
 
 export const tokenTypes = [
@@ -64,6 +65,7 @@ export function onSemanticTokens(
     params: SemanticTokensParams,
     document: TextDocument
 ): SemanticTokens {
+    Logger.log('Semantic tokens requested for ' + document.uri);
     const builder = new SemanticTokensBuilder();
     const symbols = parseDocumentSymbols(document);
 

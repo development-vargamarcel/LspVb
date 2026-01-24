@@ -1,6 +1,10 @@
 import { ServerCapabilities, TextDocumentSyncKind } from 'vscode-languageserver/node';
 import { tokenTypes, tokenModifiers } from './features/semanticTokens';
 
+/**
+ * Defines the capabilities supported by the Language Server.
+ * These are sent to the client during the initialization handshake.
+ */
 export const SERVER_CAPABILITIES: ServerCapabilities = {
     textDocumentSync: TextDocumentSyncKind.Incremental,
     hoverProvider: true,

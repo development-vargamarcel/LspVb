@@ -1,5 +1,6 @@
 import { FoldingRange, FoldingRangeParams } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { Logger } from '../utils/logger';
 import {
     FOLD_BLOCK_END_REGEX,
     FOLD_NEXT_REGEX,
@@ -24,6 +25,7 @@ export function onFoldingRanges(
     params: FoldingRangeParams,
     document: TextDocument
 ): FoldingRange[] {
+    Logger.log('Folding ranges requested for ' + document.uri);
     const text = document.getText();
     const lines = text.split(/\r?\n/);
     const ranges: FoldingRange[] = [];

@@ -1,5 +1,9 @@
 import { CompletionItem, CompletionItemKind, InsertTextFormat } from 'vscode-languageserver/node';
 
+/**
+ * A collection of code snippets for common Visual Basic structures.
+ * Provided as completion items.
+ */
 export const SNIPPETS: CompletionItem[] = [
     {
         label: 'Sub ... End Sub',

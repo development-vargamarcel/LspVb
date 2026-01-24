@@ -7,6 +7,7 @@ import {
     WorkspaceEdit
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { Logger } from '../utils/logger';
 
 /**
  * Handles code action requests.
@@ -20,6 +21,7 @@ export function onCodeAction(
     params: CodeActionParams,
     document: TextDocument
 ): (Command | CodeAction)[] {
+    Logger.log('Code actions requested for ' + document.uri);
     const diagnostics = params.context.diagnostics;
     const actions: CodeAction[] = [];
 

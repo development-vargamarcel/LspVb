@@ -1,5 +1,6 @@
 import { RenameParams, WorkspaceEdit, TextEdit } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { Logger } from '../utils/logger';
 import { onReferences } from './references';
 
 /**
@@ -15,6 +16,9 @@ export function onRenameRequest(
     params: RenameParams,
     document: TextDocument
 ): WorkspaceEdit | null {
+    Logger.log(
+        `Rename requested at ${params.position.line}:${params.position.character} to '${params.newName}'`
+    );
     const newName = params.newName;
     const locations = onReferences(
         {

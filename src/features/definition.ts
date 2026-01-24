@@ -1,5 +1,6 @@
 import { Definition, DefinitionParams, Location } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { Logger } from '../utils/logger';
 import { parseDocumentSymbols, findSymbolAtPosition } from '../utils/parser';
 import { getWordAtPosition } from '../utils/textUtils';
 
@@ -12,6 +13,7 @@ import { getWordAtPosition } from '../utils/textUtils';
  * @returns The location of the definition, or null if not found.
  */
 export function onDefinition(params: DefinitionParams, document: TextDocument): Definition | null {
+    Logger.log(`Definition requested at ${params.position.line}:${params.position.character}`);
     const word = getWordAtPosition(document, params.position);
     if (!word) {
         return null;

@@ -1,5 +1,9 @@
 import { CompletionItemKind } from 'vscode-languageserver/node';
 
+/**
+ * A dictionary of Visual Basic keywords and their metadata.
+ * Used for completion, hover information, and documentation.
+ */
 export const KEYWORDS: Record<string, { label: string; detail: string; documentation: string; kind: CompletionItemKind }> = {
     'dim': { label: 'Dim', detail: 'Dim keyword', documentation: 'Declares and allocates storage space for one or more variables.', kind: CompletionItemKind.Keyword },
     'if': { label: 'If', detail: 'If keyword', documentation: 'Conditionally executes a group of statements, depending on the value of an expression.', kind: CompletionItemKind.Keyword },
