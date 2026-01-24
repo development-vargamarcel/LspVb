@@ -4,11 +4,13 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 
 ## Features
 
-- **Code Completion**: Context-aware completion for keywords (`If`, `For`, `Sub`, etc.) and basic types, including snippets for common control structures.
+- **Code Completion**: Context-aware completion for keywords (`If`, `For`, `Sub`, etc.) and basic types, including snippets for common control structures. Now supports `Structure`, `Interface`, and `Enum`.
 - **Diagnostics**: Real-time validation for:
     - Syntax errors: Missing `Then` in `If` statements, `Dim` declarations without types, `Const` without values.
     - Block structure errors: Missing closing statements (`End Sub`, `Next`, etc.), mismatched blocks (e.g., closing `If` with `End Sub`), and unclosed nested blocks.
-- **Document Symbols**: Outline view support for Sub, Function, Class, Module, Constants, and Variables.
+    - **Flow Control**: Validation for `Return` statements (context and value) and `Exit` statements (matching block type).
+    - **Scope**: Detection of duplicate variable/symbol declarations within the same scope.
+- **Document Symbols**: Outline view support for Sub, Function, Class, Module, Property, Structure, Interface, Enum, Constants, and Variables.
 - **Hover Information**: Basic hover support for keywords and user-defined symbols.
 - **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.).
 - **Formatting**: Auto-formatting support for indentation of blocks and nested structures.

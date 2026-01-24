@@ -70,6 +70,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
                 if (finishedSymbol) {
                     // Update range end to include this line
                     finishedSymbol.range.end = { line: i, character: rawLine.length };
+                    // Logger.debug(`Parser: Closed symbol '${finishedSymbol.name}' at line ${i}`);
                 }
             }
             continue;
@@ -90,6 +91,9 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             else if (/Class/i.test(type)) kind = SymbolKind.Class;
             else if (/Module/i.test(type)) kind = SymbolKind.Module;
             else if (/Property/i.test(type)) kind = SymbolKind.Property;
+            else if (/Structure/i.test(type)) kind = SymbolKind.Struct;
+            else if (/Interface/i.test(type)) kind = SymbolKind.Interface;
+            else if (/Enum/i.test(type)) kind = SymbolKind.Enum;
 
             const symbol: DocumentSymbol = {
                 name: name,
@@ -150,6 +154,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
 
             addSymbol(symbol);
             stack.push(symbol);
+            // Logger.debug(`Parser: Opened block '${name}' at line ${i}`);
             continue;
         }
 
@@ -208,7 +213,10 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         if (fieldMatch) {
             const name = fieldMatch[2];
             // Safety check: ensure it's not a block start or const
-            if (/^(Sub|Function|Class|Module|Property|Const)$/i.test(name)) continue;
+            if (
+                /^(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Const)$/i.test(name)
+            )
+                continue;
 
             const modifier = fieldMatch[1];
             const type = fieldMatch[3] || 'Object';
@@ -267,6 +275,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             };
             addSymbol(symbol);
             stack.push(symbol);
+            // Logger.debug(`Parser: Opened inner block '${innerBlockName}' at line ${i}`);
             continue;
         }
     }
@@ -319,6 +328,8 @@ export function findSymbolAtPosition(
         }
     }
 
+    Logger.debug(`Parser: Scope chain depth: ${scopeChain.length}`);
+
     // 2. Search for 'name' in the scope chain, starting from deepest
     // Reverse iterate scopeChain
     for (let i = scopeChain.length - 1; i >= 0; i--) {
@@ -343,6 +354,7 @@ export function findSymbolAtPosition(
                 // If there are matches, return the one defined before usage?
                 // Or just the first one?
                 // Ideally check ranges.
+                Logger.debug(`Parser: Found symbol in scope '${scope.name}'`);
                 return matches[0];
             }
         }
@@ -384,13 +396,20 @@ export function findSymbolAtPosition(
         // We checked all containers.
         // Finally check the root level symbols (siblings of the top-most container)
         const rootMatches = symbols.filter((s) => s.name.toLowerCase() === name.toLowerCase());
-        if (rootMatches.length > 0) return rootMatches[0];
+        if (rootMatches.length > 0) {
+            Logger.debug(`Parser: Found symbol at root (sibling check)`);
+            return rootMatches[0];
+        }
     } else {
         // We are at root. Check root symbols.
         const matches = symbols.filter((s) => s.name.toLowerCase() === name.toLowerCase());
-        if (matches.length > 0) return matches[0];
+        if (matches.length > 0) {
+            Logger.debug(`Parser: Found symbol at root`);
+            return matches[0];
+        }
     }
 
+    Logger.debug(`Parser: Symbol '${name}' not found.`);
     return null;
 }
 
@@ -401,6 +420,7 @@ export function findSymbolAtPosition(
  * @returns An array of visible symbols.
  */
 export function getVisibleSymbols(symbols: DocumentSymbol[], position: Position): DocumentSymbol[] {
+    Logger.debug(`Parser: Getting visible symbols at ${position.line}:${position.character}`);
     const scopeChain: DocumentSymbol[] = [];
     let currentScope = symbols;
 
@@ -436,7 +456,9 @@ export function getVisibleSymbols(symbols: DocumentSymbol[], position: Position)
         }
     }
 
-    return Array.from(visibleSymbols.values());
+    const result = Array.from(visibleSymbols.values());
+    Logger.debug(`Parser: Found ${result.length} visible symbols.`);
+    return result;
 }
 
 /**

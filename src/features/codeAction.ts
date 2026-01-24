@@ -68,12 +68,14 @@ export function onCodeAction(
                 }
             };
 
-            actions.push({
+            const action = {
                 title: "Add 'Then'",
                 kind: CodeActionKind.QuickFix,
                 diagnostics: [diagnostic],
                 edit: edit
-            });
+            };
+            actions.push(action);
+            Logger.debug(`CodeAction: Proposed "Add 'Then'" at line ${range.start.line}`);
         } else if (diagnostic.message.includes('Variable declaration without type')) {
             // Range is the line. regex was `Dim x`.
             // We want to append " As Object" (default safe type)
@@ -107,12 +109,14 @@ export function onCodeAction(
                 }
             };
 
-            actions.push({
+            const action = {
                 title: "Add 'As Object'",
                 kind: CodeActionKind.QuickFix,
                 diagnostics: [diagnostic],
                 edit: edit
-            });
+            };
+            actions.push(action);
+            Logger.debug(`CodeAction: Proposed "Add 'As Object'" at line ${range.start.line}`);
         } else if (diagnostic.message.includes('Const declaration requires a value')) {
             // Range is line. regex `Const x`.
             // Append " = 0"
@@ -133,12 +137,14 @@ export function onCodeAction(
                 }
             };
 
-            actions.push({
+            const action = {
                 title: 'Initialize with 0',
                 kind: CodeActionKind.QuickFix,
                 diagnostics: [diagnostic],
                 edit: edit
-            });
+            };
+            actions.push(action);
+            Logger.debug(`CodeAction: Proposed "Initialize with 0" at line ${range.start.line}`);
         } else if (diagnostic.message.includes('Missing closing statement for')) {
             const match = /Missing closing statement for '(\w+)'/.exec(diagnostic.message);
             if (match) {
@@ -149,7 +155,7 @@ export function onCodeAction(
                 const lastLine = document.lineCount;
                 const insertPos = { line: lastLine, character: 0 };
 
-                actions.push({
+                const action = {
                     title: `Add '${closeStmt}'`,
                     kind: CodeActionKind.QuickFix,
                     diagnostics: [diagnostic],
@@ -158,7 +164,9 @@ export function onCodeAction(
                             [document.uri]: [TextEdit.insert(insertPos, '\n' + closeStmt)]
                         }
                     }
-                });
+                };
+                actions.push(action);
+                Logger.debug(`CodeAction: Proposed "Add '${closeStmt}'" at end of document`);
             }
         } else if (diagnostic.message.includes('Mismatched block')) {
             const match = /Expected closing for '(\w+)'/.exec(diagnostic.message);
@@ -169,7 +177,7 @@ export function onCodeAction(
                 // Insert before the mismatch line
                 const insertPos = { line: diagnostic.range.start.line, character: 0 };
 
-                actions.push({
+                const action = {
                     title: `Add '${closeStmt}'`,
                     kind: CodeActionKind.QuickFix,
                     diagnostics: [diagnostic],
@@ -178,7 +186,9 @@ export function onCodeAction(
                             [document.uri]: [TextEdit.insert(insertPos, closeStmt + '\n')]
                         }
                     }
-                });
+                };
+                actions.push(action);
+                Logger.debug(`CodeAction: Proposed "Add '${closeStmt}'" at line ${insertPos.line}`);
             }
         }
     }

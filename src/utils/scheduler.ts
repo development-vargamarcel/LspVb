@@ -22,12 +22,14 @@ export class ValidationScheduler {
      */
     public scheduleValidation(document: TextDocument) {
         const uri = document.uri;
+        Logger.debug(`Scheduler: Scheduling validation for ${uri}`);
         if (this.validationTimers.has(uri)) {
             clearTimeout(this.validationTimers.get(uri)!);
         }
 
         const timer = setTimeout(() => {
             try {
+                Logger.debug(`Scheduler: Running validation for ${uri}`);
                 const diagnostics = validateTextDocument(document);
                 this.connection.sendDiagnostics({ uri: document.uri, diagnostics });
             } catch (error) {
@@ -47,6 +49,7 @@ export class ValidationScheduler {
     public clear(document: TextDocument) {
         const uri = document.uri;
         if (this.validationTimers.has(uri)) {
+            Logger.debug(`Scheduler: Clearing validation for ${uri}`);
             clearTimeout(this.validationTimers.get(uri)!);
             this.validationTimers.delete(uri);
         }
