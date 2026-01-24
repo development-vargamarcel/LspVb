@@ -88,4 +88,42 @@ End Sub
         expect(hints).to.have.lengthOf(1);
         expect(hints[0].label).to.equal('a:');
     });
+
+    it('should handle complex signatures with generics', () => {
+        const content = `
+Sub Process(items As List(Of String), mode As Integer)
+End Sub
+
+Sub Main()
+    Process(items, 1)
+End Sub
+`;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, content);
+        const params: any = { textDocument: { uri: document.uri }, range: {} };
+
+        const hints = onInlayHints(params, document);
+
+        expect(hints).to.have.lengthOf(2);
+        expect(hints[0].label).to.equal('items:');
+        expect(hints[1].label).to.equal('mode:');
+    });
+
+    it('should ignore modifiers (ByVal, ByRef)', () => {
+        const content = `
+Sub Calc(ByVal x As Integer, ByRef y As Integer)
+End Sub
+
+Sub Main()
+    Calc(1, 2)
+End Sub
+`;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, content);
+        const params: any = { textDocument: { uri: document.uri }, range: {} };
+
+        const hints = onInlayHints(params, document);
+
+        expect(hints).to.have.lengthOf(2);
+        expect(hints[0].label).to.equal('x:');
+        expect(hints[1].label).to.equal('y:');
+    });
 });

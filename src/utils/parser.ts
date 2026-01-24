@@ -79,12 +79,75 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         // 2. Check for Block Start (Sub, Function, Class, Module)
         // Groups: 1=Modifier, 2=Type, 3=Name, 4=Args (optional)
 
+        // Modified regex to ONLY capture Modifier, Type, Name. We manually parse args.
+        // We still use the original regex source but ignore group 4 (args) from it if possible,
+        // or just re-implement matching.
+        // PARSER_BLOCK_REGEX comes from regexes.ts, it captures args in group 4.
+        // We will continue to use it for detection, but we will ignore group 4 and manually parse args
+        // to handle nested parentheses (generics, arrays).
+
         const blockMatch = new RegExp(PARSER_BLOCK_REGEX.source, 'i').exec(trimmed);
 
         if (blockMatch) {
             const type = blockMatch[2]; // Sub, Function...
             const name = blockMatch[3];
-            const args = blockMatch[4] !== undefined ? `(${blockMatch[4]})` : ''; // Capture args
+
+            // Manually parse signature to handle nested parens
+            let fullSignature = `${type} ${name}`;
+            let argsContent = '';
+
+            const startParenIndex = rawLine.indexOf('(');
+            if (startParenIndex !== -1) {
+                // Check if paren is after the name
+                const nameIndex = rawLine.indexOf(name);
+                if (startParenIndex > nameIndex) {
+                    // Start scanning for balanced parens
+                    let depth = 0;
+                    let endIndex = -1;
+                    for (let j = startParenIndex; j < rawLine.length; j++) {
+                        if (rawLine[j] === '(') depth++;
+                        else if (rawLine[j] === ')') {
+                            depth--;
+                            if (depth === 0) {
+                                endIndex = j;
+                                break;
+                            }
+                        }
+                    }
+                    if (endIndex !== -1) {
+                        argsContent = rawLine.substring(startParenIndex + 1, endIndex);
+                        fullSignature = `${type}(${argsContent})`;
+                    }
+                }
+            } else {
+                // No parens, so signature is just "Sub Name"
+                // Or if it is a Property, it might not have parens.
+                // Revert to old behavior for consistency?
+                // Old behavior: `${type}${args}`. Args was empty string if undefined.
+                // So "Sub Foo" -> "Sub" + "" = "Sub".
+                // But wait, old behavior depended on group 4 capturing group.
+                // PARSER_BLOCK_REGEX: `... (Sub|Function...) ... (\w+) ... (?:\((...)\))?`
+                // If group 4 (args) is undefined, args=""
+                // detail = `${type}${args}` -> "Sub" if no args.
+
+                // My manual implementation uses `fullSignature = "${type} ${name}"` initially.
+                // If no parens found, it stays "Sub Name".
+                // Tests expect "Sub" (without name?)
+                // `tests/parser_signature.test.ts`: expected 'Sub' to equal 'Sub'.
+
+                // Let's adjust to match legacy expectations if needed, OR update tests.
+                // Using "Sub Name" is actually better for display.
+                // But test failure 3: expected 'Sub MySub' to equal 'Sub'.
+
+                // If I change it to just `type` if no args:
+                fullSignature = type;
+            }
+
+            // Re-apply args if found
+            if (argsContent) {
+                fullSignature = `${type}(${argsContent})`;
+            }
+
             let kind: SymbolKind = SymbolKind.Function;
 
             if (/Sub/i.test(type)) kind = SymbolKind.Method;
@@ -98,7 +161,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             const symbol: DocumentSymbol = {
                 name: name,
                 kind: kind,
-                detail: `${type}${args}`, // Store full signature in detail
+                detail: fullSignature,
                 range: {
                     start: { line: i, character: 0 },
                     end: { line: i, character: rawLine.length } // Will be updated on close
@@ -110,18 +173,41 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
                 children: []
             };
 
-            if (blockMatch[4]) {
-                const argString = blockMatch[4];
-                const argsStart = rawLine.indexOf('(') + 1;
+            if (argsContent) {
+                const argsStart = rawLine.indexOf(argsContent);
                 let currentOffset = argsStart;
 
-                const argParts = argString.split(',');
+                // Split args by comma, respecting parentheses
+                const argParts: string[] = [];
+                let currentPart = '';
+                let depth = 0;
+
+                for (let k = 0; k < argsContent.length; k++) {
+                    const char = argsContent[k];
+                    if (char === '(') depth++;
+                    else if (char === ')') depth--;
+
+                    if (char === ',' && depth === 0) {
+                        argParts.push(currentPart);
+                        currentPart = '';
+                    } else {
+                        currentPart += char;
+                    }
+                }
+                argParts.push(currentPart); // Push last part
+
                 for (const part of argParts) {
                     const partTrimmed = part.trim();
+                    if (!partTrimmed) continue; // Skip empty parts (e.g. trailing comma or empty args)
+
                     const partIndex = rawLine.indexOf(partTrimmed, currentOffset);
 
                     const argRegex =
-                        /(?:ByVal|ByRef|Optional|ParamArray)?\s*(\w+)(?:\(\))?(?:\s+As\s+(\w+))?/i;
+                        /(?:ByVal|ByRef|Optional|ParamArray)?\s*(\w+)(?:\(.*\))?(?:\s+As\s+(.+))?/i;
+                    // Modified regex to handle As Type(Of T)
+                    // Group 1: Name
+                    // Group 2: Type (greedy)
+
                     const match = argRegex.exec(partTrimmed);
 
                     if (match) {

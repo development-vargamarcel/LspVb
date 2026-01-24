@@ -54,8 +54,32 @@ export function onInlayHints(params: InlayHintParams, document: TextDocument): I
             const paramString = symbol.detail.substring(paramStart + 1, paramEnd);
             if (!paramString.trim()) continue;
 
-            const paramsList = paramString.split(',').map((p) => {
-                // "x As Integer" -> "x"
+            // Split paramString by comma, respecting parentheses
+            const paramsList: string[] = [];
+            let currentParam = '';
+            let depth = 0;
+            for (let j = 0; j < paramString.length; j++) {
+                const char = paramString[j];
+                if (char === '(') depth++;
+                else if (char === ')') depth--;
+
+                if (char === ',' && depth === 0) {
+                    paramsList.push(currentParam);
+                    currentParam = '';
+                } else {
+                    currentParam += char;
+                }
+            }
+            paramsList.push(currentParam);
+
+            const paramLabels = paramsList.map((p) => {
+                // "x As List(Of Integer)" -> "x"
+                // "ByVal x As Integer" -> "x"
+                // Regex to capture name, ignoring modifiers
+                const match = /^(?:ByVal|ByRef|Optional|ParamArray)?\s*(\w+)/i.exec(p.trim());
+                if (match) {
+                    return match[1] + ':';
+                }
                 const parts = p.trim().split(/\s+/);
                 return parts[0] + ':';
             });
@@ -90,13 +114,13 @@ export function onInlayHints(params: InlayHintParams, document: TextDocument): I
                     else if (char === ')') parenDepth--;
                     else if (char === ',' && parenDepth === 1) {
                         // End of argument
-                        if (currentArgIndex < paramsList.length) {
+                        if (currentArgIndex < paramLabels.length) {
                             const argStartPos = document.positionAt(currentArgStart);
                             // Don't add hint if argument is empty
                             if (text.substring(currentArgStart, i).trim()) {
                                 hints.push({
                                     position: argStartPos,
-                                    label: paramsList[currentArgIndex],
+                                    label: paramLabels[currentArgIndex],
                                     kind: InlayHintKind.Parameter,
                                     paddingRight: true
                                 });
@@ -110,14 +134,14 @@ export function onInlayHints(params: InlayHintParams, document: TextDocument): I
             }
 
             // Last argument
-            if (currentArgIndex < paramsList.length) {
+            if (currentArgIndex < paramLabels.length) {
                 // i is now at closing ')'
                 // Check if there is content between last comma (or open paren) and closing paren
                 if (text.substring(currentArgStart, i).trim()) {
                     const argStartPos = document.positionAt(currentArgStart);
                     hints.push({
                         position: argStartPos,
-                        label: paramsList[currentArgIndex],
+                        label: paramLabels[currentArgIndex],
                         kind: InlayHintKind.Parameter,
                         paddingRight: true
                     });
