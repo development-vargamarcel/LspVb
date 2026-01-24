@@ -213,9 +213,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         if (fieldMatch) {
             const name = fieldMatch[2];
             // Safety check: ensure it's not a block start or const
-            if (
-                /^(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Const)$/i.test(name)
-            )
+            if (/^(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Const)$/i.test(name))
                 continue;
 
             const modifier = fieldMatch[1];

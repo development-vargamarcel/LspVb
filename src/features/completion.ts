@@ -123,7 +123,9 @@ export function onCompletion(
                 }
 
                 if (!typeName) {
-                    Logger.debug(`Completion: Could not determine type of '${currentSymbol.name}'.`);
+                    Logger.debug(
+                        `Completion: Could not determine type of '${currentSymbol.name}'.`
+                    );
                     currentSymbol = null;
                     break;
                 }

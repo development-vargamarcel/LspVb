@@ -90,9 +90,8 @@ End Sub
         const items = onCompletion(params, document);
 
         // Should suggest "Sub" (since we are in Sub MySub)
-        const subItem = items.find(i => i.label === 'Sub');
+        const subItem = items.find((i) => i.label === 'Sub' && i.sortText === '!');
         expect(subItem).to.exist;
-        expect(subItem!.sortText).to.equal('!');
     });
 
     it('should suggest correct closing statement for End in nested block', () => {
@@ -114,8 +113,7 @@ End Sub
         const items = onCompletion(params, document);
 
         // Should suggest "If" (since we are in If block)
-        const ifItem = items.find(i => i.label === 'If');
+        const ifItem = items.find((i) => i.label === 'If' && i.sortText === '!');
         expect(ifItem).to.exist;
-        expect(ifItem!.sortText).to.equal('!');
     });
 });

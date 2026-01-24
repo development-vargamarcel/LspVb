@@ -40,7 +40,11 @@ import {
     SemanticTokensParams,
     SemanticTokens,
     DocumentHighlightParams,
-    DocumentHighlight
+    DocumentHighlight,
+    InlayHintParams,
+    InlayHint,
+    CodeLensParams,
+    CodeLens
 } from 'vscode-languageserver/node';
 
 import {
@@ -57,6 +61,8 @@ import { onCodeAction } from './features/codeAction';
 import { onSignatureHelp } from './features/signatureHelp';
 import { onSemanticTokens } from './features/semanticTokens';
 import { onDocumentHighlight } from './features/documentHighlight';
+import { onInlayHints } from './features/inlayHints';
+import { onCodeLens, onCodeLensResolve } from './features/codeLens';
 import { parseDocumentSymbols } from './utils/parser';
 import { formatDocument, formatRange } from './features/formatting';
 import { Logger } from './utils/logger';
@@ -248,6 +254,50 @@ connection.languages.semanticTokens.on(
         Logger.log(`Semantic Tokens requested for ${params.textDocument.uri}`);
         return onSemanticTokens(params, document);
     }, { data: [] }, 'SemanticTokens')
+);
+
+// This handler provides inlay hints
+connection.languages.inlayHint.on(
+    safeHandler((params: InlayHintParams): InlayHint[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        Logger.log(`Inlay Hints requested for ${params.textDocument.uri}`);
+        return onInlayHints(params, document);
+    }, [], 'InlayHints')
+);
+
+// This handler provides code lens
+connection.onCodeLens(
+    safeHandler((params: CodeLensParams): CodeLens[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        Logger.log(`CodeLens requested for ${params.textDocument.uri}`);
+        return onCodeLens(params, document);
+    }, [], 'CodeLens')
+);
+
+// This handler resolves code lens
+connection.onCodeLensResolve(
+    (codeLens: CodeLens): CodeLens => {
+        const start = Date.now();
+        Logger.debug(`[CodeLensResolve] Started`);
+        try {
+            const data = codeLens.data;
+            if (data && data.uri) {
+                const document = documents.get(data.uri);
+                if (document) {
+                    const result = onCodeLensResolve(codeLens, document);
+                    const duration = Date.now() - start;
+                    Logger.debug(`[CodeLensResolve] Finished in ${duration}ms`);
+                    return result;
+                }
+            }
+            return codeLens;
+        } catch (error) {
+            Logger.error(`CodeLensResolve failed: ${error}`);
+            return codeLens;
+        }
+    }
 );
 
 // This handler provides formatting

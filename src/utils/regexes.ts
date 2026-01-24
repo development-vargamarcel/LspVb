@@ -44,7 +44,8 @@ export const VAL_DO_START_REGEX = /^\s*Do\b/i;
 export const VAL_WHILE_START_REGEX = /^\s*While\b/i;
 
 /** Regex for validating the end of a block (End Sub, End If, etc.). */
-export const VAL_BLOCK_END_REGEX = /^\s*End\s+(Sub|Function|Class|Module|Property|If|Select|Structure|Interface|Enum)\b/i;
+export const VAL_BLOCK_END_REGEX =
+    /^\s*End\s+(Sub|Function|Class|Module|Property|If|Select|Structure|Interface|Enum)\b/i;
 /** Regex for validating Next statement. */
 export const VAL_NEXT_REGEX = /^\s*Next\b/i;
 /** Regex for validating Loop statement. */
@@ -81,7 +82,8 @@ export const FMT_CASE_REGEX = /^\s*Case\b/i;
 // For Folding
 
 /** Regex for identifying block ends for folding. */
-export const FOLD_BLOCK_END_REGEX = /^\s*End\s+(Sub|Function|If|Class|Module|Structure|Interface|Enum)\b/i;
+export const FOLD_BLOCK_END_REGEX =
+    /^\s*End\s+(Sub|Function|If|Class|Module|Structure|Interface|Enum)\b/i;
 /** Regex for identifying Next for folding. */
 export const FOLD_NEXT_REGEX = /^\s*Next(\s+|$)/i;
 /** Regex for identifying Wend for folding. */
