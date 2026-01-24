@@ -3,9 +3,7 @@ import {
     CodeActionKind,
     CodeActionParams,
     Command,
-    TextDocumentEdit,
     TextEdit,
-    Range,
     WorkspaceEdit
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';

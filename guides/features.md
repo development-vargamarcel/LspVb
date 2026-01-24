@@ -53,3 +53,26 @@ Shows basic information when hovering over keywords or symbols.
 ## 7. Definition
 Supports "Go to Definition" for symbols defined within the same file.
 - Ctrl+Click on a symbol usage to jump to its declaration.
+
+## 8. References
+Finds all occurrences of a symbol in the current document.
+- Right-click on a symbol and select "Find All References".
+
+## 9. Rename
+Renames a symbol and all its occurrences in the current document.
+- Right-click on a symbol and select "Rename Symbol" (or press F2).
+
+## 10. Code Actions (Quick Fixes)
+Provides quick fixes for common errors:
+- Add missing `Then` to `If` statements.
+- Add `As Object` to `Dim` declarations.
+- Initialize `Const` with a value.
+- Add missing closing statements (e.g. `End If`, `Next`).
+
+## 11. Signature Help
+Shows parameter information when typing a function call.
+- Triggered automatically when typing `(` or `,`.
+
+## 12. Semantic Tokens
+Provides semantic highlighting for symbols to enable better colorization in the editor.
+- Distinguishes between Classes, Methods, Variables, Keywords, etc.

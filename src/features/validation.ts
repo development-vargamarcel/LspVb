@@ -53,6 +53,7 @@ class Validator {
     }
 
     public validate(): Diagnostic[] {
+        Logger.debug('Validator: Starting line-by-line validation.');
         for (let i = 0; i < this.lines.length; i++) {
             const rawLine = this.lines[i];
             const trimmed = stripComment(rawLine).trim();
@@ -185,10 +186,12 @@ class Validator {
     }
 
     private pushStack(type: string, line: number) {
+        Logger.debug(`Validator: Pushing stack '${type}' at line ${line}`);
         this.stack.push({ type, line });
     }
 
     private checkStack(expectedType: string, line: number, content: string) {
+        Logger.debug(`Validator: Checking stack for '${expectedType}' at line ${line}`);
         if (this.stack.length === 0) {
             this.addDiagnostic(
                 line,

@@ -2,7 +2,8 @@ import {
     CompletionItem,
     CompletionItemKind,
     TextDocumentPositionParams,
-    SymbolKind
+    SymbolKind,
+    DocumentSymbol
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { KEYWORDS } from '../keywords';
@@ -84,7 +85,7 @@ export function onCompletion(
         }
 
         if (parts.length > 0) {
-            let currentSymbol: any = null;
+            let currentSymbol: DocumentSymbol | null = null;
 
             // Resolve the first part (variable or class)
             currentSymbol = findSymbolInScope(symbols, parts[0].toLowerCase(), params.position);
@@ -135,9 +136,10 @@ export function onCompletion(
                     const nextPart = parts[i + 1].toLowerCase();
                     // Look for nextPart in typeSymbol's children
                     if (typeSymbol.children) {
-                        currentSymbol = typeSymbol.children.find(
-                            (c: any) => c.name.toLowerCase() === nextPart
-                        );
+                        currentSymbol =
+                            typeSymbol.children.find(
+                                (c: DocumentSymbol) => c.name.toLowerCase() === nextPart
+                            ) || null;
                     } else {
                         currentSymbol = null;
                     }
