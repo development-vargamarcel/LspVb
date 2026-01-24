@@ -37,8 +37,11 @@ export function onDocumentHighlight(
         document
     );
 
-    return locations.map((loc) => ({
+    const highlights = locations.map((loc) => ({
         range: loc.range,
         kind: DocumentHighlightKind.Text // Default to Text since we don't distinguish Read/Write yet
     }));
+
+    Logger.debug(`Document Highlight: Found ${highlights.length} highlights.`);
+    return highlights;
 }

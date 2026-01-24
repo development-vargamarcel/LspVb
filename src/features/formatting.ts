@@ -136,6 +136,37 @@ export function formatDocument(document: TextDocument, options: FormattingOption
 }
 
 /**
+ * Handles range formatting requests.
+ * Formats the entire document to ensure context is correct, then filters edits to the requested range.
+ *
+ * @param document The document to format.
+ * @param range The range to format.
+ * @param options Formatting options.
+ * @returns An array of TextEdits within the range.
+ */
+export function formatRange(
+    document: TextDocument,
+    range: Range,
+    options: FormattingOptions
+): TextEdit[] {
+    Logger.log(`Range formatting requested for ${document.uri} at ${range.start.line}-${range.end.line}`);
+    const allEdits = formatDocument(document, options);
+
+    const rangeEdits = allEdits.filter((edit) => {
+        // Check if edit overlaps with range
+        // Since we are formatting full lines, we check if edit line is within range lines.
+        // Range start line is inclusive, end line is inclusive (usually).
+        // VS Code usually sends selection range.
+
+        const editLine = edit.range.start.line;
+        return editLine >= range.start.line && editLine <= range.end.line;
+    });
+
+    Logger.debug(`Range Formatting: Filtered to ${rangeEdits.length} edits.`);
+    return rangeEdits;
+}
+
+/**
  * Checks if a line opens a block that requires indentation for the next line.
  *
  * @param line The line content.

@@ -190,8 +190,8 @@ class Validator {
         this.stack.push({ type, line });
     }
 
-    private checkStack(expectedType: string, line: number, content: string) {
-        Logger.debug(`Validator: Checking stack for '${expectedType}' at line ${line}`);
+    private checkStack(foundClosingType: string, line: number, content: string) {
+        Logger.debug(`Validator: Checking stack for '${foundClosingType}' at line ${line}`);
         if (this.stack.length === 0) {
             this.addDiagnostic(
                 line,
@@ -202,14 +202,42 @@ class Validator {
         }
 
         const last = this.stack[this.stack.length - 1];
-        if (last.type.toLowerCase() === expectedType.toLowerCase()) {
+        if (last.type.toLowerCase() === foundClosingType.toLowerCase()) {
             this.stack.pop();
         } else {
+            const expectedClosing = this.getExpectedClosing(last.type);
             this.addDiagnostic(
                 line,
-                `Mismatched block: Expected closing for '${last.type}' (started line ${last.line + 1}), but found closing for '${expectedType}'.`,
+                `Mismatched block: Expected '${expectedClosing}' (to close '${last.type}' at line ${last.line + 1}), but found '${content.trim()}'.`,
                 DiagnosticSeverity.Error
             );
+        }
+    }
+
+    private getExpectedClosing(type: string): string {
+        switch (type.toLowerCase()) {
+            case 'if':
+                return 'End If';
+            case 'for':
+                return 'Next';
+            case 'while':
+                return 'Wend';
+            case 'do':
+                return 'Loop';
+            case 'select':
+                return 'End Select';
+            case 'sub':
+                return 'End Sub';
+            case 'function':
+                return 'End Function';
+            case 'class':
+                return 'End Class';
+            case 'module':
+                return 'End Module';
+            case 'property':
+                return 'End Property';
+            default:
+                return 'End ' + type;
         }
     }
 

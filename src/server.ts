@@ -30,6 +30,7 @@ import {
     WorkspaceEdit,
     Location,
     DocumentFormattingParams,
+    DocumentRangeFormattingParams,
     TextEdit,
     CodeActionParams,
     CodeAction,
@@ -57,7 +58,7 @@ import { onSignatureHelp } from './features/signatureHelp';
 import { onSemanticTokens } from './features/semanticTokens';
 import { onDocumentHighlight } from './features/documentHighlight';
 import { parseDocumentSymbols } from './utils/parser';
-import { formatDocument } from './features/formatting';
+import { formatDocument, formatRange } from './features/formatting';
 import { Logger } from './utils/logger';
 import { ValidationScheduler } from './utils/scheduler';
 import { safeHandler } from './utils/safeHandler';
@@ -257,6 +258,16 @@ connection.onDocumentFormatting(
         Logger.log(`Formatting requested for ${params.textDocument.uri}`);
         return formatDocument(document, params.options);
     }, [], 'Formatting')
+);
+
+// This handler provides range formatting
+connection.onDocumentRangeFormatting(
+    safeHandler((params: DocumentRangeFormattingParams): TextEdit[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        Logger.log(`Range Formatting requested for ${params.textDocument.uri}`);
+        return formatRange(document, params.range, params.options);
+    }, [], 'RangeFormatting')
 );
 
 // Make the text document manager listen on the connection
