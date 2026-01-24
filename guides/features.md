@@ -35,6 +35,7 @@ Automatically formats the document by adjusting indentation.
 - Indents code inside blocks (`If`, `For`, `Sub`, `Select Case`, etc.).
 - Dedents closing statements (`End If`, `Next`, `End Sub`).
 - Handles complex nesting.
+- **Range Formatting**: Supports formatting a specific selection of code.
 
 ## 5. Folding
 Allows collapsing of code blocks to improve readability. Supported blocks:

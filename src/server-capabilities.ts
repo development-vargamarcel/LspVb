@@ -12,6 +12,7 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
     foldingRangeProvider: true,
     definitionProvider: true,
     documentFormattingProvider: true,
+    documentRangeFormattingProvider: true,
     referencesProvider: true,
     documentHighlightProvider: true,
     renameProvider: true,

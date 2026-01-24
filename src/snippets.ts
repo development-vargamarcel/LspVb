@@ -60,5 +60,33 @@ export const SNIPPETS: CompletionItem[] = [
         insertText: 'Module ${1:Name}\n\t$0\nEnd Module',
         insertTextFormat: InsertTextFormat.Snippet,
         documentation: 'Module definition'
+    },
+    {
+        label: 'Do While ... Loop',
+        kind: CompletionItemKind.Snippet,
+        insertText: 'Do While ${1:condition}\n\t$0\nLoop',
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: 'Do While loop'
+    },
+    {
+        label: 'While ... Wend',
+        kind: CompletionItemKind.Snippet,
+        insertText: 'While ${1:condition}\n\t$0\nWend',
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: 'While loop'
+    },
+    {
+        label: 'Property ... End Property',
+        kind: CompletionItemKind.Snippet,
+        insertText: 'Property ${1:Name} As ${2:Type}\n\tGet\n\t\tReturn ${3:value}\n\tEnd Get\n\tSet(value As ${2:Type})\n\t\t$0\n\tEnd Set\nEnd Property',
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: 'Property definition'
+    },
+    {
+        label: 'Try ... Catch ... End Try',
+        kind: CompletionItemKind.Snippet,
+        insertText: 'Try\n\t$0\nCatch ex As Exception\n\t\nEnd Try',
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: 'Try Catch block'
     }
 ];
