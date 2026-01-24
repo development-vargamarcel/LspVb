@@ -51,13 +51,9 @@ describe('Completion Feature', () => {
     });
 
     it('should include user Classes in Type context', () => {
-        const content = `
-        Class MyClass
-        End Class
-        Dim x As
-        `;
+        const content = 'Class MyClass\nEnd Class\nDim x As ';
         const document = TextDocument.create('file:///test.vb', 'vb', 1, content);
-        const position = Position.create(3, 17);
+        const position = Position.create(2, 9);
 
         const items = onCompletion({ textDocument: { uri: document.uri }, position }, document);
 
@@ -66,12 +62,9 @@ describe('Completion Feature', () => {
     });
 
     it('should exclude user Variables in Type context', () => {
-        const content = `
-        Dim myVar
-        Dim x As
-        `;
+        const content = 'Dim myVar\nDim x As ';
         const document = TextDocument.create('file:///test.vb', 'vb', 1, content);
-        const position = Position.create(2, 17); // After 'As '
+        const position = Position.create(1, 9); // After 'As '
 
         const items = onCompletion({ textDocument: { uri: document.uri }, position }, document);
 

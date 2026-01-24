@@ -25,6 +25,8 @@ export function onCodeAction(
     const diagnostics = params.context.diagnostics;
     const actions: CodeAction[] = [];
 
+    Logger.debug(`CodeAction: Processing ${diagnostics.length} diagnostics.`);
+
     for (const diagnostic of diagnostics) {
         if (diagnostic.message.includes("Missing 'Then' in If statement")) {
             const range = diagnostic.range;
@@ -181,9 +183,16 @@ export function onCodeAction(
         }
     }
 
+    Logger.debug(`CodeAction: Returning ${actions.length} actions.`);
     return actions;
 }
 
+/**
+ * Returns the correct closing statement for a given block type.
+ *
+ * @param type The block type (e.g., "If", "For").
+ * @returns The closing statement (e.g., "End If", "Next").
+ */
 function getClosingStatement(type: string): string {
     switch (type.toLowerCase()) {
         case 'if':

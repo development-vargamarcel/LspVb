@@ -28,6 +28,8 @@ export function onFoldingRanges(
     Logger.log('Folding ranges requested for ' + document.uri);
     const text = document.getText();
     const lines = text.split(/\r?\n/);
+
+    Logger.debug(`Folding: Analyzing ${lines.length} lines.`);
     const ranges: FoldingRange[] = [];
     const stack: { line: number; type: string }[] = [];
 
@@ -81,5 +83,6 @@ export function onFoldingRanges(
         }
     }
 
+    Logger.debug(`Folding: Found ${ranges.length} folding ranges.`);
     return ranges;
 }

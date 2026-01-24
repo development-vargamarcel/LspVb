@@ -17,6 +17,7 @@ export function onHover(params: HoverParams, document: TextDocument): Hover | nu
     Logger.log(`Hover requested at ${params.position.line}:${params.position.character}`);
     const word = getWordAtPosition(document, params.position);
     if (!word) {
+        Logger.debug('Hover: No word found at position.');
         return null;
     }
 
@@ -25,6 +26,7 @@ export function onHover(params: HoverParams, document: TextDocument): Hover | nu
     // 1. Check Keywords
     const keywordData = KEYWORDS[lowerWord];
     if (keywordData) {
+        Logger.debug(`Hover: Found keyword '${lowerWord}'.`);
         return {
             contents: {
                 kind: MarkupKind.Markdown,
@@ -39,6 +41,7 @@ export function onHover(params: HoverParams, document: TextDocument): Hover | nu
     const matchedSymbol = findSymbolAtPosition(symbols, lowerWord, params.position);
 
     if (matchedSymbol) {
+        Logger.debug(`Hover: Found user symbol '${matchedSymbol.name}'.`);
         const kindName = getKindName(matchedSymbol.kind);
         return {
             contents: {
@@ -48,9 +51,16 @@ export function onHover(params: HoverParams, document: TextDocument): Hover | nu
         };
     }
 
+    Logger.debug('Hover: No info found.');
     return null;
 }
 
+/**
+ * Converts a SymbolKind enum to a human-readable string.
+ *
+ * @param kind The SymbolKind.
+ * @returns The string representation.
+ */
 function getKindName(kind: SymbolKind): string {
     switch (kind) {
         case SymbolKind.File:

@@ -56,6 +56,7 @@ export function onSignatureHelp(
                 const functionName = text.substring(nameStart, actualNameEnd);
 
                 if (functionName) {
+                    Logger.debug(`SignatureHelp: Identified function call '${functionName}'.`);
                     const symbols = parseDocumentSymbols(document);
                     const symbol = findSymbolInScope(
                         symbols,
@@ -68,6 +69,7 @@ export function onSignatureHelp(
                         symbol.detail &&
                         (symbol.detail.startsWith('Sub') || symbol.detail.startsWith('Function'))
                     ) {
+                        Logger.debug('SignatureHelp: Found symbol definition.');
                         // detail format is "Sub(arg1, arg2)" or "Function(args)"
                         // We need to parse detail to get label and parameters.
 
@@ -122,5 +124,6 @@ export function onSignatureHelp(
         i--;
     }
 
+    Logger.debug('SignatureHelp: No signature found.');
     return null;
 }
