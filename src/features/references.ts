@@ -2,6 +2,15 @@ import { Location, ReferenceParams } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { getWordAtPosition } from '../utils/textUtils';
 
+/**
+ * Handles Find References requests.
+ * Finds all occurrences of the symbol under the cursor in the current document.
+ * Note: Multi-file references are not yet supported.
+ *
+ * @param params The reference parameters.
+ * @param document The text document.
+ * @returns An array of locations where the symbol is found.
+ */
 export function onReferences(params: ReferenceParams, document: TextDocument): Location[] {
     const word = getWordAtPosition(document, params.position);
     if (!word) return [];

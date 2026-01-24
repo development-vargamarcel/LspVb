@@ -8,7 +8,17 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { KEYWORDS } from '../keywords';
 import { parseDocumentSymbols, getVisibleSymbols, findSymbolInScope } from '../utils/parser';
 import { SNIPPETS } from '../snippets';
+import { Logger } from '../utils/logger';
 
+/**
+ * Handles completion requests.
+ * Provides suggestions for keywords, snippets, and symbols (variables, classes, etc.).
+ * Supports dot-access (member completion) and type context (after 'As').
+ *
+ * @param params The completion parameters (position, document context).
+ * @param document The text document.
+ * @returns An array of completion items.
+ */
 export function onCompletion(
     params: TextDocumentPositionParams,
     document: TextDocument
@@ -37,6 +47,7 @@ export function onCompletion(
     const isMemberAccess = scanIndex > 0 && text[scanIndex - 1] === '.';
 
     if (isMemberAccess) {
+        Logger.log('Completion: Member access detected.');
         scanIndex--; // Move past the dot
         const parts: string[] = [];
 
@@ -172,6 +183,10 @@ export function onCompletion(
 
     const isTypeContext = prevWord === 'as';
 
+    if (isTypeContext) {
+        Logger.log('Completion: Type context detected (As ...).');
+    }
+
     // Add Keywords
     for (const key in KEYWORDS) {
         const val = KEYWORDS[key];
@@ -250,6 +265,12 @@ export function onCompletion(
     return items;
 }
 
+/**
+ * Resolves additional information for a completion item (e.g., documentation).
+ *
+ * @param item The completion item to resolve.
+ * @returns The resolved completion item.
+ */
 export function onCompletionResolve(item: CompletionItem): CompletionItem {
     const data = item.data as string;
     if (data && KEYWORDS[data]) {

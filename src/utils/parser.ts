@@ -17,6 +17,16 @@ import {
     VAL_WHILE_START_REGEX
 } from '../utils/regexes';
 
+/**
+ * Parses a text document and extracts a hierarchy of symbols.
+ *
+ * This parser uses regex pattern matching to identify blocks (Sub, Function, Class, etc.),
+ * variables (Dim), constants (Const), and other constructs. It handles nested structures
+ * by maintaining a stack of open symbols.
+ *
+ * @param document The text document to parse.
+ * @returns An array of top-level DocumentSymbols, each containing their children.
+ */
 export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
     const text = document.getText();
     const lines = text.split(/\r?\n/);
@@ -262,6 +272,18 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
     return rootSymbols;
 }
 
+/**
+ * Finds a symbol definition at a specific position by name, respecting scope.
+ *
+ * It traverses the symbol hierarchy to find the deepest symbol that contains the
+ * given position (the current scope), and then searches up the scope chain (locals, then parents, then globals)
+ * to find a symbol matching the given name.
+ *
+ * @param symbols The root symbols of the document.
+ * @param name The name of the symbol to look for.
+ * @param position The position where the lookup is happening (cursor position).
+ * @returns The matching DocumentSymbol or null if not found.
+ */
 export function findSymbolAtPosition(
     symbols: DocumentSymbol[],
     name: string,

@@ -2,6 +2,15 @@ import { RenameParams, WorkspaceEdit, TextEdit } from 'vscode-languageserver/nod
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { onReferences } from './references';
 
+/**
+ * Handles Rename requests.
+ * Renames all occurrences of the symbol under the cursor.
+ * Uses `onReferences` to find locations.
+ *
+ * @param params The rename parameters (position, new name).
+ * @param document The text document.
+ * @returns A WorkspaceEdit describing the changes.
+ */
 export function onRenameRequest(
     params: RenameParams,
     document: TextDocument

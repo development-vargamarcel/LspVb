@@ -7,6 +7,14 @@ import {
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { parseDocumentSymbols, findSymbolInScope } from '../utils/parser';
 
+/**
+ * Handles signature help requests.
+ * Provides parameter hints for function calls.
+ *
+ * @param params The signature help parameters.
+ * @param document The text document.
+ * @returns A SignatureHelp object or null.
+ */
 export function onSignatureHelp(
     params: SignatureHelpParams,
     document: TextDocument

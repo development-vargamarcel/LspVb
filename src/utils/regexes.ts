@@ -1,3 +1,8 @@
+/**
+ * Centralized regular expression definitions for parsing, validation, and formatting.
+ * Keeping regexes here ensures consistency across different features.
+ */
+
 // Access Modifiers
 export const MODIFIER_PATTERN = '(?:Public|Private|Friend|Protected)';
 

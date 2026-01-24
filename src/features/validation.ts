@@ -16,6 +16,7 @@ import {
     VAL_THEN_REGEX
 } from '../utils/regexes';
 import { stripComment } from '../utils/textUtils';
+import { Logger } from '../utils/logger';
 
 interface BlockContext {
     type: string;
@@ -24,12 +25,24 @@ interface BlockContext {
 
 /**
  * Validates a text document for syntax and structure errors.
+ *
+ * @param textDocument The document to validate.
+ * @returns An array of diagnostics to be sent to the client.
  */
 export function validateTextDocument(textDocument: TextDocument): Diagnostic[] {
+    Logger.log(`Starting validation for ${textDocument.uri}`);
     const validator = new Validator(textDocument);
-    return validator.validate();
+    const diagnostics = validator.validate();
+    Logger.log(
+        `Validation finished for ${textDocument.uri}. Found ${diagnostics.length} diagnostics.`
+    );
+    return diagnostics;
 }
 
+/**
+ * A stateful validator helper that processes the document line by line.
+ * It maintains a stack to track block structures (If, For, Sub, etc.).
+ */
 class Validator {
     private diagnostics: Diagnostic[] = [];
     private stack: BlockContext[] = [];
