@@ -1,5 +1,6 @@
-import { DocumentSymbol, SymbolKind, Position } from 'vscode-languageserver/node';
+import { DocumentSymbol, SymbolKind, Position, Range } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { Logger } from './logger';
 import {
     PARSER_BLOCK_REGEX,
     PARSER_DIM_REGEX,
@@ -28,6 +29,7 @@ import {
  * @returns An array of top-level DocumentSymbols, each containing their children.
  */
 export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
+    Logger.debug(`Parser: Parsing symbols for ${document.uri}`);
     const text = document.getText();
     const lines = text.split(/\r?\n/);
     const rootSymbols: DocumentSymbol[] = [];
@@ -269,6 +271,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         }
     }
 
+    Logger.debug(`Parser: Found ${rootSymbols.length} top-level symbols.`);
     return rootSymbols;
 }
 
@@ -290,7 +293,6 @@ export function findSymbolAtPosition(
     position: Position
 ): DocumentSymbol | null {
     // 1. Find the deepest symbol that contains the position
-    const container: DocumentSymbol | null = null;
     let currentScope = symbols;
 
     // We need to keep track of the chain of scopes to traverse back up
@@ -452,7 +454,7 @@ export function findSymbolInScope(
     return visible.find((s) => s.name.toLowerCase() === name.toLowerCase()) || null;
 }
 
-function isPositionInRange(pos: Position, range: any): boolean {
+function isPositionInRange(pos: Position, range: Range): boolean {
     if (pos.line < range.start.line || pos.line > range.end.line) return false;
     if (pos.line === range.start.line && pos.character < range.start.character) return false;
     if (pos.line === range.end.line && pos.character > range.end.character) return false;

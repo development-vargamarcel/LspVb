@@ -60,3 +60,5 @@ The server sends log messages to the client.
 
 - **VS Code**: You can view these logs in the "Output" panel. Select "SimpleVB Language Server" (or the name you registered the server with) from the dropdown.
 - **Other Clients**: Check your client's documentation on how to view LSP `window/logMessage` output.
+
+The server logs `[Info]`, `[Warn]`, `[Error]`, and `[Debug]` messages. Debug messages provide detailed information about internal operations (validation steps, symbol parsing, etc.).

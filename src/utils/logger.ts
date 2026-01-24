@@ -1,15 +1,17 @@
+import { Connection } from 'vscode-languageserver/node';
+
 /**
  * A simple logging utility for the Language Server.
  * Sends log messages to the client via the LSP connection.
  */
 export class Logger {
-    private static connection: any = null;
+    private static connection: Connection | null = null;
 
     /**
      * Sets the LSP connection to be used for logging.
      * @param connection The LSP connection object.
      */
-    static setConnection(connection: any) {
+    static setConnection(connection: Connection) {
         Logger.connection = connection;
     }
 
@@ -20,6 +22,16 @@ export class Logger {
     static log(message: string) {
         if (Logger.connection) {
             Logger.connection.console.log(`[Info] ${message}`);
+        }
+    }
+
+    /**
+     * Logs a debug message.
+     * @param message The message to log.
+     */
+    static debug(message: string) {
+        if (Logger.connection) {
+            Logger.connection.console.log(`[Debug] ${message}`);
         }
     }
 

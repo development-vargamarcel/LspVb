@@ -85,6 +85,8 @@ connection.onInitialize((params: InitializeParams) => {
 		capabilities: SERVER_CAPABILITIES
 	};
 
+    Logger.debug(`Capabilities sent: ${JSON.stringify(SERVER_CAPABILITIES)}`);
+
 	return result;
 });
 
