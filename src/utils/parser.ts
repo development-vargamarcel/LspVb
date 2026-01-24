@@ -454,6 +454,13 @@ export function findSymbolInScope(
     return visible.find((s) => s.name.toLowerCase() === name.toLowerCase()) || null;
 }
 
+/**
+ * Checks if a position is within a given range.
+ *
+ * @param pos The position to check.
+ * @param range The range.
+ * @returns True if the position is within the range.
+ */
 function isPositionInRange(pos: Position, range: Range): boolean {
     if (pos.line < range.start.line || pos.line > range.end.line) return false;
     if (pos.line === range.start.line && pos.character < range.start.character) return false;

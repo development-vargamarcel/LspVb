@@ -186,8 +186,10 @@ export function onCompletion(
     const isTypeContext = prevWord === 'as';
 
     if (isTypeContext) {
-        Logger.log('Completion: Type context detected (As ...).');
+        Logger.debug('Completion: Type context detected (As ...).');
     }
+
+    Logger.debug(`Completion: Generating items. isTypeContext=${isTypeContext}`);
 
     // Add Keywords
     for (const key in KEYWORDS) {
@@ -282,6 +284,12 @@ export function onCompletionResolve(item: CompletionItem): CompletionItem {
     return item;
 }
 
+/**
+ * Maps a SymbolKind to a CompletionItemKind.
+ *
+ * @param kind The SymbolKind to map.
+ * @returns The corresponding CompletionItemKind.
+ */
 function mapSymbolKindToCompletionKind(kind: SymbolKind): CompletionItemKind {
     switch (kind) {
         case SymbolKind.Method:

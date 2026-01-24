@@ -69,11 +69,18 @@ export function onSemanticTokens(
     const builder = new SemanticTokensBuilder();
     const symbols = parseDocumentSymbols(document);
 
+    Logger.debug(`SemanticTokens: Processing ${symbols.length} root symbols.`);
     traverseSymbols(builder, symbols);
 
     return builder.build();
 }
 
+/**
+ * Traverses the symbol hierarchy and adds tokens to the builder.
+ *
+ * @param builder The semantic tokens builder.
+ * @param symbols The list of symbols to process.
+ */
 function traverseSymbols(builder: SemanticTokensBuilder, symbols: DocumentSymbol[]) {
     for (const symbol of symbols) {
         const typeIndex = getTokenTypeIndex(symbol.kind);
@@ -93,6 +100,12 @@ function traverseSymbols(builder: SemanticTokensBuilder, symbols: DocumentSymbol
     }
 }
 
+/**
+ * Maps a SymbolKind to a semantic token type index.
+ *
+ * @param kind The SymbolKind.
+ * @returns The token type index, or -1 if no mapping exists.
+ */
 function getTokenTypeIndex(kind: SymbolKind): number {
     let type = '';
     switch (kind) {

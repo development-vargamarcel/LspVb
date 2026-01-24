@@ -1,6 +1,12 @@
 /**
  * Main entry point for the SimpleVB Language Server.
  * Handles LSP connection setup, feature registration, and event delegation.
+ *
+ * This file:
+ * 1. Establishes the connection using `vscode-languageserver`.
+ * 2. Initializes the `ValidationScheduler` for linting.
+ * 3. Registers handlers for various LSP features (completion, hover, etc.).
+ * 4. Listens for document changes.
  */
 import {
 	createConnection,

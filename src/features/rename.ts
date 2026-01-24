@@ -30,9 +30,11 @@ export function onRenameRequest(
     );
 
     if (!locations || locations.length === 0) {
+        Logger.debug('Rename: No occurrences found.');
         return null;
     }
 
+    Logger.debug(`Rename: Found ${locations.length} occurrences to rename.`);
     const changes: { [uri: string]: TextEdit[] } = {};
 
     locations.forEach((location) => {

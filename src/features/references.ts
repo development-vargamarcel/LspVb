@@ -15,7 +15,12 @@ import { getWordAtPosition } from '../utils/textUtils';
 export function onReferences(params: ReferenceParams, document: TextDocument): Location[] {
     Logger.log(`References requested at ${params.position.line}:${params.position.character}`);
     const word = getWordAtPosition(document, params.position);
-    if (!word) return [];
+    if (!word) {
+        Logger.debug('References: No word found at position.');
+        return [];
+    }
+
+    Logger.debug(`References: Searching for '${word}'`);
 
     const text = document.getText();
     const lines = text.split(/\r?\n/);
@@ -53,5 +58,6 @@ export function onReferences(params: ReferenceParams, document: TextDocument): L
         }
     }
 
+    Logger.debug(`References: Found ${locations.length} occurrences.`);
     return locations;
 }

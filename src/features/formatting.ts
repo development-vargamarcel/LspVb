@@ -30,6 +30,8 @@ export function formatDocument(document: TextDocument, options: FormattingOption
     const lines = text.split(/\r?\n/);
     const edits: TextEdit[] = [];
 
+    Logger.debug(`Formatting: Processing ${lines.length} lines.`);
+
     let indentLevel = 0;
     const indentString = options.insertSpaces ? ' '.repeat(options.tabSize) : '\t';
     const selectStack: boolean[] = []; // true = case opened
@@ -129,9 +131,16 @@ export function formatDocument(document: TextDocument, options: FormattingOption
         }
     }
 
+    Logger.debug(`Formatting: Generated ${edits.length} edits.`);
     return edits;
 }
 
+/**
+ * Checks if a line opens a block that requires indentation for the next line.
+ *
+ * @param line The line content.
+ * @returns True if the next line should be indented.
+ */
 function shouldIndentNext(line: string): boolean {
     // Blocks that increase indentation (Excluding Select Case which is handled manually)
     if (VAL_SELECT_CASE_START_REGEX.test(line)) return false;
