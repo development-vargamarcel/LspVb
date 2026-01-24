@@ -25,7 +25,9 @@ import {
     CodeAction,
     Command,
     SignatureHelpParams,
-    SignatureHelp
+    SignatureHelp,
+    SemanticTokensParams,
+    SemanticTokens
 } from 'vscode-languageserver/node';
 
 import {
@@ -40,6 +42,7 @@ import { onReferences } from './features/references';
 import { onRenameRequest } from './features/rename';
 import { onCodeAction } from './features/codeAction';
 import { onSignatureHelp } from './features/signatureHelp';
+import { onSemanticTokens } from './features/semanticTokens';
 import { parseDocumentSymbols } from './utils/parser';
 import { formatDocument } from './features/formatting';
 import { Logger } from './utils/logger';
@@ -193,6 +196,15 @@ connection.onSignatureHelp(
         if (!document) return null;
         return onSignatureHelp(params, document);
     }, null, 'SignatureHelp')
+);
+
+// This handler provides semantic tokens
+connection.languages.semanticTokens.on(
+    safeHandler((params: SemanticTokensParams): SemanticTokens => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return { data: [] };
+        return onSemanticTokens(params, document);
+    }, { data: [] }, 'SemanticTokens')
 );
 
 // This handler provides formatting

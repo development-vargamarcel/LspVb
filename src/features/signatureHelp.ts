@@ -5,7 +5,7 @@ import {
     ParameterInformation
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { parseDocumentSymbols } from '../utils/parser';
+import { parseDocumentSymbols, findSymbolInScope } from '../utils/parser';
 
 export function onSignatureHelp(
     params: SignatureHelpParams,
@@ -48,10 +48,15 @@ export function onSignatureHelp(
 
                 if (functionName) {
                     const symbols = parseDocumentSymbols(document);
-                    const symbol = findSymbolRecursive(symbols, functionName.toLowerCase());
+                    const symbol = findSymbolInScope(
+                        symbols,
+                        functionName.toLowerCase(),
+                        params.position
+                    );
 
                     if (
                         symbol &&
+                        symbol.detail &&
                         (symbol.detail.startsWith('Sub') || symbol.detail.startsWith('Function'))
                     ) {
                         // detail format is "Sub(arg1, arg2)" or "Function(args)"
@@ -108,18 +113,5 @@ export function onSignatureHelp(
         i--;
     }
 
-    return null;
-}
-
-function findSymbolRecursive(symbols: any[], name: string): any | null {
-    for (const sym of symbols) {
-        if (sym.name.toLowerCase() === name) {
-            return sym;
-        }
-        if (sym.children) {
-            const childMatch = findSymbolRecursive(sym.children, name);
-            if (childMatch) return childMatch;
-        }
-    }
     return null;
 }
