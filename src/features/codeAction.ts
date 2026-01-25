@@ -118,7 +118,10 @@ export function onCodeAction(
             };
             actions.push(action);
             Logger.debug(`CodeAction: Proposed "Add 'As Object'" at line ${range.start.line}`);
-        } else if (diagnostic.message.includes('missing a return type') || diagnostic.message.includes('missing type after')) {
+        } else if (
+            diagnostic.message.includes('missing a return type') ||
+            diagnostic.message.includes('missing type after')
+        ) {
             // "Function 'Foo' is missing a return type"
             // We want to append " As Object" after the function name/parens.
             // But validation logic checked the line.
@@ -138,7 +141,11 @@ export function onCodeAction(
             let textToInsert = ' As Object';
 
             // Check if line already ends with " As" (missing type case)
-            if (/\bAs\s*$/i.test(lineText.substring(0, commentIndex === -1 ? undefined : commentIndex).trimEnd())) {
+            if (
+                /\bAs\s*$/i.test(
+                    lineText.substring(0, commentIndex === -1 ? undefined : commentIndex).trimEnd()
+                )
+            ) {
                 textToInsert = ' Object';
             }
 
@@ -155,7 +162,9 @@ export function onCodeAction(
                 edit: edit
             };
             actions.push(action);
-            Logger.debug(`CodeAction: Proposed "Add 'As Object' (Return Type)" at line ${range.start.line}`);
+            Logger.debug(
+                `CodeAction: Proposed "Add 'As Object' (Return Type)" at line ${range.start.line}`
+            );
         } else if (diagnostic.message.includes('Avoid magic numbers')) {
             // "Avoid magic numbers (100). Use a Constant instead."
             const match = /magic numbers \((\d+)\)/.exec(diagnostic.message);
@@ -332,8 +341,6 @@ export function onCodeAction(
                     // Multiple declarations: Dim x, y As Integer
                     // We need to remove the variable name and its associated comma.
                     // diagnostic.range covers just the name.
-
-                    const varName = document.getText(range);
 
                     // We need to find where this variable is in the line to know if we remove comma before or after.
                     // Case 1: "Dim x, y" -> Remove "x, " -> "Dim y"

@@ -3,12 +3,14 @@ import {
     DocumentHighlightKind,
     DocumentHighlightParams,
     SymbolKind,
-    Range
+    Range,
+    DocumentSymbol,
+    Position
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
 import { onReferences } from './references';
-import { parseDocumentSymbols, findSymbolAtPosition } from '../utils/parser';
+import { parseDocumentSymbols } from '../utils/parser';
 import { stripComment } from '../utils/textUtils';
 
 /**
@@ -49,7 +51,6 @@ export function onDocumentHighlight(
     // Enhancement: If we are on a Method/Function/Property definition,
     // highlight control flow keywords (Exit, Return, End)
     const symbols = parseDocumentSymbols(document);
-    const symbol = findSymbolAtPosition(symbols, '', params.position); // name arg ignored? findSymbolAtPosition uses name?
     // Wait, findSymbolAtPosition takes 'name'.
     // We need to find the symbol at the position regardless of name?
     // onReferences already found the symbol name.
@@ -67,8 +68,8 @@ export function onDocumentHighlight(
 
     // We can just scan symbols again.
 
-    function findDefinitionSymbol(syms: any[]): any {
-        for(const s of syms) {
+    function findDefinitionSymbol(syms: DocumentSymbol[]): DocumentSymbol | null {
+        for (const s of syms) {
             if (isPositionInRange(params.position, s.selectionRange)) {
                 return s;
             }
@@ -82,12 +83,13 @@ export function onDocumentHighlight(
 
     const defSymbol = findDefinitionSymbol(symbols);
 
-    if (defSymbol && (
-        defSymbol.kind === SymbolKind.Method ||
-        defSymbol.kind === SymbolKind.Function ||
-        defSymbol.kind === SymbolKind.Property ||
-        defSymbol.kind === SymbolKind.Constructor
-    )) {
+    if (
+        defSymbol &&
+        (defSymbol.kind === SymbolKind.Method ||
+            defSymbol.kind === SymbolKind.Function ||
+            defSymbol.kind === SymbolKind.Property ||
+            defSymbol.kind === SymbolKind.Constructor)
+    ) {
         // Scan the body of the function for control flow keywords
         const text = document.getText();
         const lines = text.split(/\r?\n/);
@@ -114,7 +116,6 @@ export function onDocumentHighlight(
 
             // Match Return
             if (/^Return\b/i.test(trimmed)) {
-                const index = rawLine.indexOf("Return"); // Case sensitive search? rawLine might match "Return" or "return"
                 // Use regex exec to find index ignoring case
                 const returnMatch = /Return/i.exec(rawLine);
                 if (returnMatch) {
@@ -132,13 +133,13 @@ export function onDocumentHighlight(
                 const endRegex = /^(End)\s+(Sub|Function|Property)/i;
                 const endMatch = endRegex.exec(trimmed);
                 if (endMatch) {
-                     const index = rawLine.indexOf(endMatch[1]); // "End"
-                     if (index !== -1) {
-                         highlights.push({
-                             range: Range.create(i, index, i, index + endMatch[0].length), // Highlight "End Sub"
-                             kind: DocumentHighlightKind.Read
-                         });
-                     }
+                    const index = rawLine.indexOf(endMatch[1]); // "End"
+                    if (index !== -1) {
+                        highlights.push({
+                            range: Range.create(i, index, i, index + endMatch[0].length), // Highlight "End Sub"
+                            kind: DocumentHighlightKind.Read
+                        });
+                    }
                 }
             }
         }
@@ -148,7 +149,7 @@ export function onDocumentHighlight(
     return highlights;
 }
 
-function isPositionInRange(pos: any, range: any): boolean {
+function isPositionInRange(pos: Position, range: Range): boolean {
     if (pos.line < range.start.line || pos.line > range.end.line) return false;
     if (pos.line === range.start.line && pos.character < range.start.character) return false;
     if (pos.line === range.end.line && pos.character > range.end.character) return false;

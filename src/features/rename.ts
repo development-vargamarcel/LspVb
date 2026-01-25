@@ -23,7 +23,9 @@ export function onRenameRequest(
 
     // Validate new name
     if (!/^[a-zA-Z_]\w*$/.test(newName)) {
-        Logger.warn(`Rename: Invalid name '${newName}'. Must start with letter/underscore and contain only alphanumeric characters.`);
+        Logger.warn(
+            `Rename: Invalid name '${newName}'. Must start with letter/underscore and contain only alphanumeric characters.`
+        );
         return null;
     }
 

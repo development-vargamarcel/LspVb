@@ -12,7 +12,10 @@ import { getWordAtPosition } from '../utils/textUtils';
  * @param document The text document.
  * @returns The location of the type definition, or null if not found.
  */
-export function onTypeDefinition(params: DefinitionParams, document: TextDocument): Definition | null {
+export function onTypeDefinition(
+    params: DefinitionParams,
+    document: TextDocument
+): Definition | null {
     Logger.log(`Type Definition requested at ${params.position.line}:${params.position.character}`);
     const word = getWordAtPosition(document, params.position);
     if (!word) return null;

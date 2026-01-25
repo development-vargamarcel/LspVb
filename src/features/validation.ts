@@ -147,7 +147,7 @@ function checkUnusedVariables(document: TextDocument, symbols: DocumentSymbol[])
                     // Simple check: First letter is lowercase?
                     // Exception: "_" prefix?
                     if (/^[A-Z]/.test(sym.name)) {
-                         diagnostics.push({
+                        diagnostics.push({
                             severity: DiagnosticSeverity.Information,
                             range: sym.selectionRange,
                             message: `Local variables should be camelCase (start with lowercase).`,
@@ -439,16 +439,16 @@ class Validator {
                     DiagnosticSeverity.Warning
                 );
             } else {
-                 // Has 'As', but maybe missing type? "Function Foo() As" -> handled by parser error usually?
-                 // Or "Function Foo() As " -> trimmed ends with As?
-                 if (/\bAs\s*$/i.test(trimmed)) {
-                     const type = /^Function/i.test(trimmed) ? 'Function' : 'Property';
-                     this.addDiagnostic(
+                // Has 'As', but maybe missing type? "Function Foo() As" -> handled by parser error usually?
+                // Or "Function Foo() As " -> trimmed ends with As?
+                if (/\bAs\s*$/i.test(trimmed)) {
+                    const type = /^Function/i.test(trimmed) ? 'Function' : 'Property';
+                    this.addDiagnostic(
                         lineIndex,
                         `${type} declaration is missing type after 'As'.`,
                         DiagnosticSeverity.Warning
-                     );
-                 }
+                    );
+                }
             }
         }
     }

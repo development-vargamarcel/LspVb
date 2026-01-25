@@ -101,7 +101,7 @@ function traverseSymbols(builder: SemanticTokensBuilder, symbols: DocumentSymbol
                 // readonly is index 2. 1 << 2 = 4.
                 const readonlyIndex = tokenModifiersMap.get('readonly');
                 if (readonlyIndex !== undefined) {
-                    modifiers |= (1 << readonlyIndex);
+                    modifiers |= 1 << readonlyIndex;
                 }
             }
 
