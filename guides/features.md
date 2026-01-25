@@ -99,6 +99,7 @@ Shows parameter information when typing a function call.
 ## 12. Semantic Tokens
 Provides semantic highlighting for symbols to enable better colorization in the editor.
 - Distinguishes between Classes, Methods, Variables, Keywords, etc.
+- Adds `readonly` modifier to Constants.
 
 ## 13. Inlay Hints
 Displays parameter names inline for function and subroutine calls.
@@ -108,3 +109,6 @@ Displays parameter names inline for function and subroutine calls.
 ## 14. Code Lens
 Displays the number of references for classes, methods, and properties above their definition.
 - Currently informational only (displays count).
+
+## 15. Document Highlight (Structure)
+- When a method/function definition is selected, control flow keywords (`Exit`, `Return`, `End`) are highlighted.

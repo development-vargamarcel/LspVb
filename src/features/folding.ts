@@ -15,6 +15,7 @@ import {
     FOLD_REGION_START_REGEX,
     FOLD_REGION_END_REGEX
 } from '../utils/regexes';
+import { stripComment } from '../utils/textUtils';
 
 /**
  * Handles folding range requests.
@@ -64,7 +65,7 @@ export function onFoldingRanges(
         }
 
         // Remove comments for analysis of code blocks
-        const line = rawLine.split("'")[0].trim();
+        const line = stripComment(rawLine).trim();
         if (!line) continue;
 
         // Check for block ends

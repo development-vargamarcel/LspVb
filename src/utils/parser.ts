@@ -17,6 +17,7 @@ import {
     VAL_DO_START_REGEX,
     VAL_WHILE_START_REGEX
 } from '../utils/regexes';
+import { stripComment } from './textUtils';
 
 /**
  * Parses a text document and extracts a hierarchy of symbols.
@@ -51,7 +52,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
     for (let i = 0; i < lines.length; i++) {
         const rawLine = lines[i];
         // Strip comments for analysis
-        const line = rawLine.split("'")[0];
+        const line = stripComment(rawLine);
         const trimmed = line.trim();
         if (!trimmed) continue;
 
