@@ -44,7 +44,9 @@ import {
     InlayHintParams,
     InlayHint,
     CodeLensParams,
-    CodeLens
+    CodeLens,
+    WorkspaceSymbolParams,
+    SymbolInformation
 } from 'vscode-languageserver/node';
 
 import {
@@ -64,6 +66,7 @@ import { onSemanticTokens } from './features/semanticTokens';
 import { onDocumentHighlight } from './features/documentHighlight';
 import { onInlayHints } from './features/inlayHints';
 import { onCodeLens, onCodeLensResolve } from './features/codeLens';
+import { onWorkspaceSymbol } from './features/workspaceSymbol';
 import { parseDocumentSymbols } from './utils/parser';
 import { formatDocument, formatRange } from './features/formatting';
 import { Logger } from './utils/logger';
@@ -193,7 +196,7 @@ connection.onDefinition(
         const document = documents.get(params.textDocument.uri);
         if (!document) return null;
         Logger.log(`Definition requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
-        return onDefinition(params, document);
+        return onDefinition(params, document, documents.all());
     }, null, 'Definition')
 );
 
@@ -213,7 +216,7 @@ connection.onReferences(
         const document = documents.get(params.textDocument.uri);
         if (!document) return [];
         Logger.log(`References requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
-        return onReferences(params, document);
+        return onReferences(params, document, documents.all());
     }, [], 'References')
 );
 
@@ -233,7 +236,7 @@ connection.onRenameRequest(
         const document = documents.get(params.textDocument.uri);
         if (!document) return null;
         Logger.log(`Rename requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character} to '${params.newName}'`);
-        return onRenameRequest(params, document);
+        return onRenameRequest(params, document, documents.all());
     }, null, 'Rename')
 );
 
@@ -277,6 +280,14 @@ connection.languages.inlayHint.on(
     }, [], 'InlayHints')
 );
 
+// This handler provides workspace symbols
+connection.onWorkspaceSymbol(
+    safeHandler((params: WorkspaceSymbolParams): SymbolInformation[] => {
+        Logger.log(`Workspace Symbol requested for query '${params.query}'`);
+        return onWorkspaceSymbol(params, documents.all());
+    }, [], 'WorkspaceSymbol')
+);
+
 // This handler provides code lens
 connection.onCodeLens(
     safeHandler((params: CodeLensParams): CodeLens[] => {
@@ -297,7 +308,7 @@ connection.onCodeLensResolve(
             if (data && data.uri) {
                 const document = documents.get(data.uri);
                 if (document) {
-                    const result = onCodeLensResolve(codeLens, document);
+                    const result = onCodeLensResolve(codeLens, document, documents.all());
                     const duration = Date.now() - start;
                     Logger.debug(`[CodeLensResolve] Finished in ${duration}ms`);
                     return result;

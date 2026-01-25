@@ -10,11 +10,13 @@ import { onReferences } from './references';
  *
  * @param params The rename parameters (position, new name).
  * @param document The text document.
+ * @param allDocuments Optional list of all open documents.
  * @returns A WorkspaceEdit describing the changes.
  */
 export function onRenameRequest(
     params: RenameParams,
-    document: TextDocument
+    document: TextDocument,
+    allDocuments: TextDocument[] = [document]
 ): WorkspaceEdit | null {
     Logger.log(
         `Rename requested at ${params.position.line}:${params.position.character} to '${params.newName}'`
@@ -35,7 +37,8 @@ export function onRenameRequest(
             position: params.position,
             context: { includeDeclaration: true }
         },
-        document
+        document,
+        allDocuments
     );
 
     if (!locations || locations.length === 0) {

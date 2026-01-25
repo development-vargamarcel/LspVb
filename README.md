@@ -17,16 +17,17 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Hover Information**: Basic hover support for keywords and user-defined symbols.
 - **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.) and comment blocks.
 - **Formatting**: Auto-formatting support for indentation of blocks and nested structures.
-- **Go to Definition**: Jump to the definition of a symbol within the same file.
+- **Go to Definition**: Jump to the definition of a symbol. Supports finding definitions across multiple open files.
 - **Go to Type Definition**: Jump to the definition of a variable's type.
-- **Find References**: Find all occurrences of a symbol within the same file (scope-aware).
-- **Rename**: Rename a symbol and all its occurrences (scope-aware).
+- **Find References**: Find all occurrences of a symbol. Supports searching across all open files.
+- **Rename**: Rename a symbol and all its occurrences. Supports renaming across all open files.
+- **Workspace Symbols**: Search for symbols (Classes, Methods, Variables) across all open files in the workspace.
 - **Code Actions**: Quick fixes for common errors (missing `Then`, `As`, return types), removing unused variables, and extracting constants.
 - **Signature Help**: Parameter hints for function and subroutine calls.
 - **Semantic Tokens**: Syntax highlighting for different symbol types (classes, variables, etc.).
 - **Document Highlight**: Highlights all occurrences of a symbol in the editor.
 - **Inlay Hints**: Displays parameter names inline for function and subroutine calls.
-- **Code Lens**: Displays reference counts for classes and methods (informational).
+- **Code Lens**: Displays reference counts for classes and methods (calculated across all open files).
 
 ## Architecture
 

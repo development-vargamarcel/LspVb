@@ -45,9 +45,14 @@ export function onCodeLens(params: CodeLensParams, document: TextDocument): Code
  *
  * @param codeLens The code lens to resolve.
  * @param document The text document.
+ * @param allDocuments Optional list of all open documents.
  * @returns The resolved CodeLens with a command.
  */
-export function onCodeLensResolve(codeLens: CodeLens, document: TextDocument): CodeLens {
+export function onCodeLensResolve(
+    codeLens: CodeLens,
+    document: TextDocument,
+    allDocuments: TextDocument[] = [document]
+): CodeLens {
     const data = codeLens.data;
     if (!data) return codeLens;
 
@@ -63,7 +68,8 @@ export function onCodeLensResolve(codeLens: CodeLens, document: TextDocument): C
             position: data.position,
             context: { includeDeclaration: false }
         },
-        document
+        document,
+        allDocuments
     );
 
     const count = locations.length;
