@@ -85,7 +85,7 @@ export const FMT_CASE_REGEX = /^\s*Case\b/i;
 
 /** Regex for identifying block ends for folding. */
 export const FOLD_BLOCK_END_REGEX =
-    /^\s*End\s+(Sub|Function|If|Class|Module|Structure|Interface|Enum)\b/i;
+    /^\s*End\s+(Sub|Function|If|Class|Module|Structure|Interface|Enum|Select)\b/i;
 /** Regex for identifying Next for folding. */
 export const FOLD_NEXT_REGEX = /^\s*Next(\s+|$)/i;
 /** Regex for identifying Wend for folding. */
@@ -110,3 +110,5 @@ export const FOLD_FOR_START_REGEX = /^\s*For\b/i;
 export const FOLD_WHILE_START_REGEX = /^\s*While\b/i;
 /** Regex for identifying Do loops for folding. */
 export const FOLD_DO_START_REGEX = /^\s*Do\b/i;
+/** Regex for identifying Select Case starts for folding. */
+export const FOLD_SELECT_START_REGEX = /^\s*Select\s+Case\b/i;

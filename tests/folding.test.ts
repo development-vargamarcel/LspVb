@@ -51,4 +51,20 @@ Next
         expect(ranges[0].startLine).to.equal(1);
         expect(ranges[0].endLine).to.equal(2);
     });
+
+    it('should fold Select Case/End Select blocks', () => {
+        const content = `
+Select Case x
+    Case 1
+        ' Code
+End Select
+`;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, content);
+        const params: FoldingRangeParams = { textDocument: { uri: 'file:///test.vb' } };
+        const ranges = onFoldingRanges(params, document);
+
+        expect(ranges).to.have.lengthOf(1);
+        expect(ranges[0].startLine).to.equal(1);
+        expect(ranges[0].endLine).to.equal(3);
+    });
 });

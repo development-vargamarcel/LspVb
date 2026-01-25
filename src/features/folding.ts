@@ -11,6 +11,7 @@ import {
     FOLD_FOR_START_REGEX,
     FOLD_WHILE_START_REGEX,
     FOLD_DO_START_REGEX,
+    FOLD_SELECT_START_REGEX,
     FOLD_REGION_START_REGEX,
     FOLD_REGION_END_REGEX
 } from '../utils/regexes';
@@ -81,6 +82,8 @@ export function onFoldingRanges(
             startType = 'while';
         } else if (FOLD_DO_START_REGEX.test(line)) {
             startType = 'do';
+        } else if (FOLD_SELECT_START_REGEX.test(line)) {
+            startType = 'select';
         } else if (FOLD_REGION_START_REGEX.test(line)) {
             startType = 'region';
         }

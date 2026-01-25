@@ -240,7 +240,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
 
             addSymbol(symbol);
             stack.push(symbol);
-            // Logger.debug(`Parser: Opened block '${name}' at line ${i}`);
+            Logger.debug(`Parser: Opened block '${name}' at line ${i}`);
             continue;
         }
 
@@ -359,7 +359,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             };
             addSymbol(symbol);
             stack.push(symbol);
-            // Logger.debug(`Parser: Opened inner block '${innerBlockName}' at line ${i}`);
+            Logger.debug(`Parser: Opened inner block '${innerBlockName}' at line ${i}`);
             continue;
         }
     }
