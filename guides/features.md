@@ -6,8 +6,9 @@ SimpleVB provides a set of essential features to improve the editing experience 
 Context-aware suggestions for:
 - **Keywords**: Standard VB keywords (`If`, `Select`, `Function`, `Dim`, etc.).
 - **Symbols**: User-defined Subroutines, Functions, Variables, and Constants found in the current document.
-- **Snippets**: Pre-defined templates for common structures (`If...Then`, `For...Next`, `Try...Catch`).
+- **Snippets**: Pre-defined templates for common structures (`If...Then`, `For...Next`, `Try...Catch`, `Property`, `Select Case`).
 - **End Logic**: Intelligent suggestions for closing statements (e.g., typing `End` suggests `If`, `Sub`, `Class`, etc. based on context).
+- **Built-in Functions**: Suggestions for standard library functions (e.g., `Len`, `Mid`, `MsgBox`).
 
 ## 2. Diagnostics (Validation)
 Real-time error checking for:
@@ -23,7 +24,7 @@ Real-time error checking for:
 - **Flow Control**:
     - `Return`: Validates that `Return` is used within a Function, Sub, or Property. Checks if a value is returned (required for Function/Property, forbidden for Sub).
     - `Exit`: Validates that `Exit Sub`, `Exit For`, etc., are used within the correct block type.
-    -   `Return Type`: Warns if a `Function` or `Property` is missing an `As Type` clause.
+    - `Return Type`: Warns if a `Function` or `Property` is missing an `As Type` clause.
 - **Scope**:
     - Duplicate Declarations: Warns if a symbol name is reused within the same scope.
     - Unused Variables: Warns if a local variable is declared but never used.
@@ -46,6 +47,8 @@ Provides a hierarchical, tree-based view of the symbols in the file.
     - Variables (Dim)
     - Constants (Const)
     - Fields
+    - Imports
+    - Regions
 
 ## 4. Formatting
 Automatically formats the document by adjusting indentation.
@@ -63,16 +66,21 @@ Allows collapsing of code blocks to improve readability. Supported blocks:
 - `Do...Loop`
 - `While...Wend`
 - `Select...End Select`
+- `Region`
 - **Comments**: Consecutive comment lines are foldable.
 
 ## 6. Hover
 Shows basic information when hovering over keywords or symbols.
 - Displays the type of symbol (e.g., "Function", "Variable").
-- Shows documentation for built-in keywords.
+- Shows documentation for built-in keywords and standard library functions.
 
 ## 7. Definition
 Supports "Go to Definition" for symbols defined within the same file.
 - Ctrl+Click on a symbol usage to jump to its declaration.
+
+### Go to Type Definition
+Supports jumping to the definition of a variable's type.
+- Right-click on a variable and select "Go to Type Definition".
 
 ## 8. References
 Finds all occurrences of a symbol in the current document.
@@ -81,6 +89,7 @@ Finds all occurrences of a symbol in the current document.
 ## 9. Rename
 Renames a symbol and all its occurrences in the current document.
 - Right-click on a symbol and select "Rename Symbol" (or press F2).
+- Validates the new name to ensure it is a valid identifier.
 
 ## 10. Code Actions (Quick Fixes)
 Provides quick fixes for common errors:
@@ -92,12 +101,10 @@ Provides quick fixes for common errors:
 - **Remove Unused Variable**: Safely removes unused local variables, including handling multiple declarations (e.g., `Dim x, y`).
 - **Extract to Constant**: Extracts a magic number to a `Const` definition.
 
-### Validation of Rename
-- The `Rename` feature now validates the new name to ensure it is a valid identifier (alphanumeric, starts with letter/underscore).
-
 ## 11. Signature Help
 Shows parameter information when typing a function call.
 - Triggered automatically when typing `(` or `,`.
+- Supports user-defined functions and standard VB built-in functions (e.g., `Mid`, `Len`, `MsgBox`).
 
 ## 12. Semantic Tokens
 Provides semantic highlighting for symbols to enable better colorization in the editor.

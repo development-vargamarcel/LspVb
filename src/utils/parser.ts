@@ -6,6 +6,9 @@ import {
     PARSER_DIM_REGEX,
     PARSER_CONST_REGEX,
     PARSER_FIELD_REGEX,
+    PARSER_IMPORTS_REGEX,
+    PARSER_REGION_START_REGEX,
+    PARSER_REGION_END_REGEX,
     VAL_BLOCK_END_REGEX,
     VAL_IF_START_REGEX,
     VAL_THEN_REGEX,
@@ -62,7 +65,8 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             endMatch ||
             VAL_NEXT_REGEX.test(trimmed) ||
             VAL_LOOP_REGEX.test(trimmed) ||
-            VAL_WEND_REGEX.test(trimmed)
+            VAL_WEND_REGEX.test(trimmed) ||
+            PARSER_REGION_END_REGEX.test(trimmed)
         ) {
             if (stack.length > 0) {
                 // Should check if the closing matches the opening?
@@ -323,7 +327,53 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             continue;
         }
 
-        // 6. Check for inner blocks (If, For, Select, Do, While)
+        // 6. Check for Imports
+        const importsMatch = PARSER_IMPORTS_REGEX.exec(trimmed);
+        if (importsMatch) {
+            const name = importsMatch[1];
+            const symbol: DocumentSymbol = {
+                name: name,
+                kind: SymbolKind.Package,
+                detail: `Imports ${name}`,
+                range: {
+                    start: { line: i, character: 0 },
+                    end: { line: i, character: rawLine.length }
+                },
+                selectionRange: {
+                    start: { line: i, character: rawLine.indexOf(name) },
+                    end: { line: i, character: rawLine.indexOf(name) + name.length }
+                },
+                children: []
+            };
+            addSymbol(symbol);
+            continue;
+        }
+
+        // 7. Check for Regions
+        const regionMatch = PARSER_REGION_START_REGEX.exec(trimmed);
+        if (regionMatch) {
+            const name = regionMatch[1].trim(); // Can be string literal
+            const symbol: DocumentSymbol = {
+                name: name,
+                kind: SymbolKind.Namespace, // Visual grouping
+                detail: '#Region',
+                range: {
+                    start: { line: i, character: 0 },
+                    end: { line: i, character: rawLine.length }
+                },
+                selectionRange: {
+                    start: { line: i, character: 0 },
+                    end: { line: i, character: trimmed.length }
+                },
+                children: []
+            };
+            addSymbol(symbol);
+            stack.push(symbol);
+            Logger.debug(`Parser: Opened region '${name}' at line ${i}`);
+            continue;
+        }
+
+        // 8. Check for inner blocks (If, For, Select, Do, While)
         let innerBlockName = '';
         if (VAL_IF_START_REGEX.test(trimmed)) {
             // Check if it's a block If

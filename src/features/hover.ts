@@ -2,6 +2,7 @@ import { Hover, HoverParams, MarkupKind, SymbolKind } from 'vscode-languageserve
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
 import { KEYWORDS } from '../keywords';
+import { BUILTINS } from '../builtins';
 import { parseDocumentSymbols, findSymbolAtPosition } from '../utils/parser';
 import { getWordAtPosition } from '../utils/textUtils';
 
@@ -35,7 +36,19 @@ export function onHover(params: HoverParams, document: TextDocument): Hover | nu
         };
     }
 
-    // 2. Check User Symbols
+    // 2. Check Built-ins
+    const builtinData = BUILTINS[lowerWord];
+    if (builtinData) {
+        Logger.debug(`Hover: Found builtin '${lowerWord}'.`);
+        return {
+            contents: {
+                kind: MarkupKind.Markdown,
+                value: `**${builtinData.detail}**\n\n${builtinData.documentation}`
+            }
+        };
+    }
+
+    // 3. Check User Symbols
     const symbols = parseDocumentSymbols(document);
     // Find the symbol that matches the name
     const matchedSymbol = findSymbolAtPosition(symbols, lowerWord, params.position);
