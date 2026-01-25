@@ -35,6 +35,8 @@ import { parseDocumentSymbols } from '../utils/parser';
 interface BlockContext {
     type: string;
     line: number;
+    /** Tracks if the block contains any statements or nested blocks. */
+    hasContent: boolean;
 }
 
 /**
@@ -205,7 +207,13 @@ class Validator {
 
             if (!trimmed) continue;
 
-            this.validateStructure(trimmed, i, rawLine);
+            const isStructure = this.validateStructure(trimmed, i, rawLine);
+
+            // If not a start/end of a block, it is content (or inner structure like Else)
+            if (!isStructure) {
+                this.markCurrentContent();
+            }
+
             this.validateSyntax(trimmed, i, rawLine);
             this.validateUnreachable(trimmed, i);
         }
@@ -385,15 +393,16 @@ class Validator {
      * @param trimmed The trimmed line content.
      * @param lineIndex The line number.
      * @param rawLine The original line content.
+     * @returns True if the line was a block start or end.
      */
-    private validateStructure(trimmed: string, lineIndex: number, rawLine: string) {
+    private validateStructure(trimmed: string, lineIndex: number, rawLine: string): boolean {
         // 1. Check for End/Closing statements first
         if (this.handleBlockEnd(trimmed, lineIndex, rawLine)) {
-            return;
+            return true;
         }
 
         // 2. Check for Start/Opening statements
-        this.handleBlockStart(trimmed, lineIndex);
+        return this.handleBlockStart(trimmed, lineIndex);
     }
 
     /**
@@ -433,39 +442,43 @@ class Validator {
      * Handles block starting statements.
      * @param trimmed The trimmed line.
      * @param lineIndex The line number.
+     * @returns True if a block started.
      */
-    private handleBlockStart(trimmed: string, lineIndex: number) {
+    private handleBlockStart(trimmed: string, lineIndex: number): boolean {
         let match: RegExpMatchArray | null;
 
         // Generic Start
         if ((match = VAL_BLOCK_START_REGEX.exec(trimmed))) {
             this.pushStack(match[1], lineIndex);
-            return;
+            return true;
         }
 
         // Specific Starts
         if (VAL_IF_START_REGEX.test(trimmed)) {
             if (this.isBlockIf(trimmed)) {
                 this.pushStack('If', lineIndex);
+                return true;
             }
-            return;
+            return false;
         }
         if (VAL_FOR_START_REGEX.test(trimmed)) {
             this.pushStack('For', lineIndex);
-            return;
+            return true;
         }
         if (VAL_SELECT_CASE_START_REGEX.test(trimmed)) {
             this.pushStack('Select', lineIndex);
-            return;
+            return true;
         }
         if (VAL_DO_START_REGEX.test(trimmed)) {
             this.pushStack('Do', lineIndex);
-            return;
+            return true;
         }
         if (VAL_WHILE_START_REGEX.test(trimmed)) {
             this.pushStack('While', lineIndex);
-            return;
+            return true;
         }
+
+        return false;
     }
 
     /**
@@ -496,7 +509,18 @@ class Validator {
      */
     private pushStack(type: string, line: number) {
         Logger.debug(`Validator: Pushing stack '${type}' at line ${line}`);
-        this.stack.push({ type, line });
+        // Mark parent as having content (a nested block counts as content)
+        this.markCurrentContent();
+        this.stack.push({ type, line, hasContent: false });
+    }
+
+    /**
+     * Marks the current block on the stack as having content.
+     */
+    private markCurrentContent() {
+        if (this.stack.length > 0) {
+            this.stack[this.stack.length - 1].hasContent = true;
+        }
     }
 
     /**
@@ -519,6 +543,18 @@ class Validator {
         const last = this.stack[this.stack.length - 1];
         if (last.type.toLowerCase() === foundClosingType.toLowerCase()) {
             this.stack.pop();
+            // Check for empty block
+            if (!last.hasContent) {
+                // Only warn for specific block types
+                const type = last.type.toLowerCase();
+                if (['if', 'for', 'while', 'do', 'select'].includes(type)) {
+                    this.addDiagnostic(
+                        last.line,
+                        `Empty '${last.type}' block detected.`,
+                        DiagnosticSeverity.Warning
+                    );
+                }
+            }
         } else {
             const expectedClosing = this.getExpectedClosing(last.type);
             this.addDiagnostic(

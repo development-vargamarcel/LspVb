@@ -19,6 +19,7 @@ Real-time error checking for:
     - Unclosed blocks (e.g., `If` without `End If`).
     - Mismatched blocks (e.g., closing a `For` loop with `End Sub`).
     - Unexpected closing statements.
+    - **Empty Blocks**: Warns about empty control flow blocks (e.g., `If ... End If` with no content).
 - **Flow Control**:
     - `Return`: Validates that `Return` is used within a Function, Sub, or Property. Checks if a value is returned (required for Function/Property, forbidden for Sub).
     - `Exit`: Validates that `Exit Sub`, `Exit For`, etc., are used within the correct block type.
