@@ -92,11 +92,16 @@ export const FOLD_NEXT_REGEX = /^\s*Next(\s+|$)/i;
 export const FOLD_WEND_REGEX = /^\s*Wend(\s+|$)/i;
 /** Regex for identifying Loop for folding. */
 export const FOLD_LOOP_REGEX = /^\s*Loop(\s+|$)/i;
+/** Regex for identifying Region end for folding. */
+export const FOLD_REGION_END_REGEX = /^\s*#End\s+Region\b/i;
+
 /** Regex for identifying block starts for folding. */
 export const FOLD_BLOCK_START_REGEX = new RegExp(
     `^(?:(?:${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Structure|Interface|Enum)\\b`,
     'i'
 );
+/** Regex for identifying Region start for folding. */
+export const FOLD_REGION_START_REGEX = /^\s*#Region\b/i;
 /** Regex for identifying If...Then starts for folding. */
 export const FOLD_IF_START_REGEX = /^\s*If\b.*?\bThen\s*$/i;
 /** Regex for identifying For loops for folding. */
