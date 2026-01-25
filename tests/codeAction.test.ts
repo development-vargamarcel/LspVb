@@ -190,4 +190,49 @@ End Sub
         const removeAction = actions.find((a: any) => a.title === 'Remove unused variable');
         expect(removeAction).to.not.exist;
     });
+
+    it('should provide extract constant action for magic number', () => {
+        const text = `
+Sub Main()
+    x = 100
+End Sub
+        `;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+
+        // Mock diagnostic produced by validation (Magic Number 100)
+        // Line 2: "    x = 100"
+        // 100 starts at char 8
+        const range = Range.create(2, 8, 2, 11);
+        const diagnostic: Diagnostic = {
+            severity: DiagnosticSeverity.Information,
+            range: range,
+            message: 'Avoid magic numbers (100). Use a Constant instead.',
+            source: 'SimpleVB'
+        };
+
+        const params: any = {
+            textDocument: { uri: document.uri },
+            range: range,
+            context: { diagnostics: [diagnostic] }
+        };
+
+        const actions = onCodeAction(params, document);
+
+        const extractAction = actions.find((a: any) => a.title === 'Extract to Constant');
+        expect(extractAction).to.exist;
+        expect((extractAction as CodeAction).kind).to.equal(CodeActionKind.RefactorExtract);
+
+        const changes = (extractAction as CodeAction).edit!.changes![document.uri];
+        expect(changes).to.have.lengthOf(2);
+
+        // 1. Insert Const
+        const insertEdit = changes.find(c => c.newText.includes('Const '));
+        expect(insertEdit).to.exist;
+        expect(insertEdit!.newText).to.contain('Const CONST_100 = 100');
+
+        // 2. Replace 100 with CONST_100
+        const replaceEdit = changes.find(c => c.newText === 'CONST_100');
+        expect(replaceEdit).to.exist;
+        expect(replaceEdit!.range).to.deep.equal(range);
+    });
 });

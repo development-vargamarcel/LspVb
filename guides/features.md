@@ -89,6 +89,7 @@ Provides quick fixes for common errors:
 - Add `As Object` to `Function` or `Property` declarations missing a return type.
 - Initialize `Const` with a value.
 - Add missing closing statements (e.g. `End If`, `Next`).
+- **Extract to Constant**: Extracts a magic number to a `Const` definition.
 
 ## 11. Signature Help
 Shows parameter information when typing a function call.

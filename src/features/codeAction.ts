@@ -8,6 +8,7 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
+import { parseDocumentSymbols, getSymbolContainingPosition } from '../utils/parser';
 
 /**
  * Handles code action requests.
@@ -155,6 +156,53 @@ export function onCodeAction(
             };
             actions.push(action);
             Logger.debug(`CodeAction: Proposed "Add 'As Object' (Return Type)" at line ${range.start.line}`);
+        } else if (diagnostic.message.includes('Avoid magic numbers')) {
+            // "Avoid magic numbers (100). Use a Constant instead."
+            const match = /magic numbers \((\d+)\)/.exec(diagnostic.message);
+            if (match) {
+                const value = match[1];
+                const constName = `CONST_${value}`; // Simple generation strategy
+
+                // Find where to insert: Start of the containing method/block?
+                const symbols = parseDocumentSymbols(document);
+                const container = getSymbolContainingPosition(symbols, diagnostic.range.start);
+
+                let insertPos = { line: 0, character: 0 };
+                let indentation = '';
+
+                if (container) {
+                    // Insert at start of container (after definition)
+                    // container.range.start is the definition line.
+                    // We want to insert after that line.
+                    insertPos = { line: container.range.start.line + 1, character: 0 };
+
+                    // Try to match indentation of the container's content?
+                    // Usually indentation of container + 1 level?
+                    // Or just use 4 spaces/1 tab.
+                    // Let's assume standard indentation.
+                    indentation = '\t';
+                }
+
+                const constDecl = `${indentation}Const ${constName} = ${value}\n`;
+
+                const edit: WorkspaceEdit = {
+                    changes: {
+                        [document.uri]: [
+                            TextEdit.insert(insertPos, constDecl),
+                            TextEdit.replace(diagnostic.range, constName)
+                        ]
+                    }
+                };
+
+                const action = {
+                    title: 'Extract to Constant',
+                    kind: CodeActionKind.RefactorExtract,
+                    diagnostics: [diagnostic],
+                    edit: edit
+                };
+                actions.push(action);
+                Logger.debug(`CodeAction: Proposed "Extract to Constant" for ${value}`);
+            }
         } else if (diagnostic.message.includes('Const declaration requires a value')) {
             // Range is line. regex `Const x`.
             // Append " = 0"
