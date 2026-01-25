@@ -203,6 +203,9 @@ class Validator {
         Logger.debug('Validator: Starting line-by-line validation.');
         for (let i = 0; i < this.lines.length; i++) {
             const rawLine = this.lines[i];
+            // Check for TODOs before checking for empty trimmed lines
+            this.checkTodos(rawLine.trim(), i);
+
             const trimmed = stripComment(rawLine).trim();
 
             if (!trimmed) continue;
@@ -220,6 +223,31 @@ class Validator {
 
         this.checkUnclosedBlocks();
         return this.diagnostics;
+    }
+
+    /**
+     * Checks for TODO and FIXME comments.
+     * @param rawTrimmed The trimmed line (including comments).
+     * @param lineIndex The line number.
+     */
+    private checkTodos(rawTrimmed: string, lineIndex: number) {
+        if (rawTrimmed.startsWith("'")) {
+            const comment = rawTrimmed.substring(1);
+            if (/\bTODO:/i.test(comment)) {
+                this.addDiagnostic(
+                    lineIndex,
+                    `TODO: ${comment.split(/todo:/i)[1].trim()}`,
+                    DiagnosticSeverity.Information
+                );
+            }
+            if (/\bFIXME:/i.test(comment)) {
+                this.addDiagnostic(
+                    lineIndex,
+                    `FIXME: ${comment.split(/fixme:/i)[1].trim()}`,
+                    DiagnosticSeverity.Information
+                );
+            }
+        }
     }
 
     /**
@@ -308,6 +336,58 @@ class Validator {
         const exitMatch = VAL_EXIT_REGEX.exec(trimmed);
         if (exitMatch) {
             this.validateExit(exitMatch[1], lineIndex);
+        }
+
+        // Check for Missing Return Type in Function/Property
+        if (/^(Function|Property)\b/i.test(trimmed)) {
+            // Check if it has 'As' clause
+            // Use regex that allows parentheses and whitespace
+            // Simplified: look for ' As ' after the name/parens
+            // Note: rawLine might contain comments, but trimmed doesn't start with comment.
+            // trimmed: "Function Foo()"
+            // We need to be careful about "Function As" (invalid name) vs "Function Foo As"
+
+            // Regex: Start with Function/Property, then space, then anything, then NOT 'As' before end (ignoring comment)
+            // Easier: Check if " As " exists (case insensitive)
+            // But "Function AsFunc()" might contain "As".
+            // So we want " As " to be after the parameters.
+
+            // Actually, we can check if it ends with "As <Type>"
+            // Regex: /\)\s+As\s+\w+/i  OR  /\s+As\s+\w+/i (if no parens for property)
+
+            // NOTE: "Function Foo" is valid (As Object default). We want to warn.
+
+            // Exclude "End Function" (already handled by block checks, but strict regex needed)
+            if (/^End\s+(Function|Property)/i.test(trimmed)) return;
+            if (/^(Exit|Declare)\s+/i.test(trimmed)) return; // Declare Function ...
+
+            // Ignore line continuations (multi-line definitions)
+            if (trimmed.endsWith('_')) return;
+
+            // Check for 'As' keyword
+            if (!/\bAs\b/i.test(trimmed)) {
+                // Determine type
+                const type = /^Function/i.test(trimmed) ? 'Function' : 'Property';
+                const nameMatch = /^(?:Function|Property)\s+(\w+)/i.exec(trimmed);
+                const name = nameMatch ? nameMatch[1] : 'unknown';
+
+                this.addDiagnostic(
+                    lineIndex,
+                    `${type} '${name}' is missing a return type (e.g. 'As Object').`,
+                    DiagnosticSeverity.Warning
+                );
+            } else {
+                 // Has 'As', but maybe missing type? "Function Foo() As" -> handled by parser error usually?
+                 // Or "Function Foo() As " -> trimmed ends with As?
+                 if (/\bAs\s*$/i.test(trimmed)) {
+                     const type = /^Function/i.test(trimmed) ? 'Function' : 'Property';
+                     this.addDiagnostic(
+                        lineIndex,
+                        `${type} declaration is missing type after 'As'.`,
+                        DiagnosticSeverity.Warning
+                     );
+                 }
+            }
         }
     }
 

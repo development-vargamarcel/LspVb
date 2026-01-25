@@ -36,9 +36,34 @@ export function onFoldingRanges(
     const ranges: FoldingRange[] = [];
     const stack: { line: number; type: string }[] = [];
 
+    let commentBlockStart = -1;
+
     for (let i = 0; i < lines.length; i++) {
-        // Remove comments for analysis
         const rawLine = lines[i];
+        const trimmedRaw = rawLine.trim();
+
+        // 1. Comment Folding Logic
+        if (trimmedRaw.startsWith("'")) {
+            if (commentBlockStart === -1) {
+                commentBlockStart = i;
+            }
+        } else {
+            if (commentBlockStart !== -1) {
+                // End of comment block
+                const commentBlockEnd = i - 1;
+                // Only fold if >= 2 lines
+                if (commentBlockEnd > commentBlockStart) {
+                    ranges.push({
+                        startLine: commentBlockStart,
+                        endLine: commentBlockEnd,
+                        kind: 'comment'
+                    });
+                }
+                commentBlockStart = -1;
+            }
+        }
+
+        // Remove comments for analysis of code blocks
         const line = rawLine.split("'")[0].trim();
         if (!line) continue;
 
@@ -90,6 +115,18 @@ export function onFoldingRanges(
 
         if (startType) {
             stack.push({ line: i, type: startType });
+        }
+    }
+
+    // Close any remaining comment block at EOF
+    if (commentBlockStart !== -1) {
+        const commentBlockEnd = lines.length - 1;
+        if (commentBlockEnd > commentBlockStart) {
+            ranges.push({
+                startLine: commentBlockStart,
+                endLine: commentBlockEnd,
+                kind: 'comment'
+            });
         }
     }
 

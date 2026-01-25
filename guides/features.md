@@ -23,9 +23,12 @@ Real-time error checking for:
 - **Flow Control**:
     - `Return`: Validates that `Return` is used within a Function, Sub, or Property. Checks if a value is returned (required for Function/Property, forbidden for Sub).
     - `Exit`: Validates that `Exit Sub`, `Exit For`, etc., are used within the correct block type.
+    -   `Return Type`: Warns if a `Function` or `Property` is missing an `As Type` clause.
 - **Scope**:
     - Duplicate Declarations: Warns if a symbol name is reused within the same scope.
     - Unused Variables: Warns if a local variable is declared but never used.
+- **Tasks**:
+    - **TODO/FIXME**: Dectects `TODO` and `FIXME` comments and reports them as informational diagnostics.
 
 ## 3. Document Outline (Symbols)
 Provides a hierarchical, tree-based view of the symbols in the file.
@@ -57,6 +60,7 @@ Allows collapsing of code blocks to improve readability. Supported blocks:
 - `Do...Loop`
 - `While...Wend`
 - `Select...End Select`
+- **Comments**: Consecutive comment lines are foldable.
 
 ## 6. Hover
 Shows basic information when hovering over keywords or symbols.
@@ -79,6 +83,7 @@ Renames a symbol and all its occurrences in the current document.
 Provides quick fixes for common errors:
 - Add missing `Then` to `If` statements.
 - Add `As Object` to `Dim` declarations.
+- Add `As Object` to `Function` or `Property` declarations missing a return type.
 - Initialize `Const` with a value.
 - Add missing closing statements (e.g. `End If`, `Next`).
 

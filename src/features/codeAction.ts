@@ -117,6 +117,44 @@ export function onCodeAction(
             };
             actions.push(action);
             Logger.debug(`CodeAction: Proposed "Add 'As Object'" at line ${range.start.line}`);
+        } else if (diagnostic.message.includes('missing a return type') || diagnostic.message.includes('missing type after')) {
+            // "Function 'Foo' is missing a return type"
+            // We want to append " As Object" after the function name/parens.
+            // But validation logic checked the line.
+            // If it's a multiline definition, this might be tricky.
+            // Assuming single line or ends on this line.
+
+            const range = diagnostic.range;
+            const lineText = document.getText(range);
+            const commentIndex = lineText.indexOf("'");
+            let insertPos = range.end;
+
+            if (commentIndex !== -1) {
+                insertPos = { line: range.start.line, character: commentIndex };
+            }
+
+            // Append " As Object"
+            let textToInsert = ' As Object';
+
+            // Check if line already ends with " As" (missing type case)
+            if (/\bAs\s*$/i.test(lineText.substring(0, commentIndex === -1 ? undefined : commentIndex).trimEnd())) {
+                textToInsert = ' Object';
+            }
+
+            const edit: WorkspaceEdit = {
+                changes: {
+                    [document.uri]: [TextEdit.insert(insertPos, textToInsert)]
+                }
+            };
+
+            const action = {
+                title: "Add 'As Object'",
+                kind: CodeActionKind.QuickFix,
+                diagnostics: [diagnostic],
+                edit: edit
+            };
+            actions.push(action);
+            Logger.debug(`CodeAction: Proposed "Add 'As Object' (Return Type)" at line ${range.start.line}`);
         } else if (diagnostic.message.includes('Const declaration requires a value')) {
             // Range is line. regex `Const x`.
             // Append " = 0"
