@@ -11,6 +11,7 @@ describe('Validation Tests', () => {
         const doc = createDoc(`
 Sub Test()
     Dim x As Integer
+    x = 1
 `);
         const diagnostics = validateTextDocument(doc);
         expect(diagnostics).to.have.lengthOf(1);

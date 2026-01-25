@@ -10,6 +10,7 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
     - Block structure errors: Missing closing statements (`End Sub`, `Next`, etc.), mismatched blocks (e.g., closing `If` with `End Sub`), and unclosed nested blocks.
     - **Flow Control**: Validation for `Return` statements (context and value) and `Exit` statements (matching block type).
     - **Scope**: Detection of duplicate variable/symbol declarations within the same scope.
+    - **Unused Variables**: Detection of local variables that are declared but never used.
 - **Document Symbols**: Outline view support for Sub, Function, Class, Module, Property, Structure, Interface, Enum, Constants, and Variables.
 - **Hover Information**: Basic hover support for keywords and user-defined symbols.
 - **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.).

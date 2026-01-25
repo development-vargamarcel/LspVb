@@ -364,6 +364,19 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         }
     }
 
+    // Close any remaining symbols on the stack (unclosed blocks)
+    // Set their end range to the end of the document
+    if (stack.length > 0) {
+        const lastLine = lines.length - 1;
+        const lastChar = lines[lastLine].length;
+        while (stack.length > 0) {
+            const sym = stack.pop();
+            if (sym) {
+                sym.range.end = { line: lastLine, character: lastChar };
+            }
+        }
+    }
+
     Logger.debug(`Parser: Found ${rootSymbols.length} top-level symbols.`);
     return rootSymbols;
 }

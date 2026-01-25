@@ -3,7 +3,8 @@ import {
     DiagnosticSeverity,
     TextDocument,
     Range,
-    DocumentSymbol
+    DocumentSymbol,
+    SymbolKind
 } from 'vscode-languageserver/node';
 import {
     VAL_BLOCK_START_REGEX,
@@ -48,6 +49,10 @@ export function validateTextDocument(textDocument: TextDocument): Diagnostic[] {
     const duplicateDiagnostics = checkDuplicates(symbols);
     diagnostics.push(...duplicateDiagnostics);
 
+    // Check for unused variables
+    const unusedDiagnostics = checkUnusedVariables(textDocument, symbols);
+    diagnostics.push(...unusedDiagnostics);
+
     Logger.log(
         `Validation finished for ${textDocument.uri}. Found ${diagnostics.length} diagnostics.`
     );
@@ -82,6 +87,95 @@ function checkDuplicates(symbols: DocumentSymbol[]): Diagnostic[] {
         }
     }
     return diagnostics;
+}
+
+/**
+ * Checks for unused variables within methods/functions.
+ * @param document The text document.
+ * @param symbols The document symbols.
+ * @returns A list of diagnostics for unused variables.
+ */
+function checkUnusedVariables(document: TextDocument, symbols: DocumentSymbol[]): Diagnostic[] {
+    const diagnostics: Diagnostic[] = [];
+    const text = document.getText();
+    const lines = text.split(/\r?\n/);
+    const wordIndex = buildWordIndex(lines);
+
+    const traverse = (syms: DocumentSymbol[], parent: DocumentSymbol | null) => {
+        for (const sym of syms) {
+            if (sym.kind === SymbolKind.Variable) {
+                // Only check local variables (inside Method, Function, Property)
+                // We determine "local" if the parent is one of these types.
+                if (
+                    parent &&
+                    (parent.kind === SymbolKind.Method ||
+                        parent.kind === SymbolKind.Function ||
+                        parent.kind === SymbolKind.Property ||
+                        parent.kind === SymbolKind.Constructor)
+                ) {
+                    const name = sym.name.toLowerCase();
+                    const occurrences = wordIndex.get(name) || [];
+                    const parentRange = parent.range;
+
+                    // Count occurrences within the parent scope
+                    let count = 0;
+                    for (const lineIdx of occurrences) {
+                        if (
+                            lineIdx >= parentRange.start.line &&
+                            lineIdx <= parentRange.end.line
+                        ) {
+                            count++;
+                        }
+                    }
+
+                    // If count is 1 (declaration only), report unused
+                    // Note: If multiple variables on one line "Dim x, y", x appears once.
+                    // If "Dim x = x + 1", x appears twice.
+                    if (count <= 1) {
+                        diagnostics.push({
+                            severity: DiagnosticSeverity.Information,
+                            range: sym.selectionRange,
+                            message: `Variable '${sym.name}' is declared but never used.`,
+                            source: 'SimpleVB'
+                        });
+                    }
+                }
+            }
+
+            if (sym.children) {
+                traverse(sym.children, sym);
+            }
+        }
+    };
+
+    traverse(symbols, null);
+    return diagnostics;
+}
+
+/**
+ * Builds a map of word occurrences in the document.
+ * Maps lower-case word -> list of line numbers (one per occurrence).
+ * @param lines The lines of the document.
+ * @returns The word index map.
+ */
+function buildWordIndex(lines: string[]): Map<string, number[]> {
+    const map = new Map<string, number[]>();
+
+    for (let i = 0; i < lines.length; i++) {
+        // Strip comments to ignore usages in comments
+        const line = stripComment(lines[i]);
+        const regex = /\b\w+\b/g;
+        let match;
+        while ((match = regex.exec(line)) !== null) {
+            const word = match[0].toLowerCase();
+            if (!map.has(word)) {
+                map.set(word, []);
+            }
+            map.get(word)!.push(i);
+        }
+    }
+
+    return map;
 }
 
 /**
