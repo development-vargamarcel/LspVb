@@ -183,6 +183,7 @@ class Validator {
     private diagnostics: Diagnostic[] = [];
     private stack: BlockContext[] = [];
     private lines: string[];
+    private isUnreachable = false;
 
     constructor(private document: TextDocument) {
         this.lines = document.getText().split(/\r?\n/);
@@ -200,12 +201,46 @@ class Validator {
 
             if (!trimmed) continue;
 
-            this.validateSyntax(trimmed, i, rawLine);
             this.validateStructure(trimmed, i, rawLine);
+            this.validateSyntax(trimmed, i, rawLine);
+            this.validateUnreachable(trimmed, i);
         }
 
         this.checkUnclosedBlocks();
         return this.diagnostics;
+    }
+
+    /**
+     * Checks for unreachable code.
+     * @param trimmed The trimmed line.
+     * @param lineIndex The line number.
+     */
+    private validateUnreachable(trimmed: string, lineIndex: number) {
+        if (this.isUnreachable) {
+            // Check if this line resets reachability (block ends/starts, Else, Case)
+            // Note: Structure handling happens before this, so stack might have changed.
+            // But we need to check the TEXT of the line.
+
+            const isControlFlow =
+                VAL_BLOCK_START_REGEX.test(trimmed) ||
+                VAL_BLOCK_END_REGEX.test(trimmed) ||
+                VAL_NEXT_REGEX.test(trimmed) ||
+                VAL_LOOP_REGEX.test(trimmed) ||
+                VAL_WEND_REGEX.test(trimmed) ||
+                /^(Else|ElseIf|Case)\b/i.test(trimmed);
+
+            if (!isControlFlow) {
+                this.addDiagnostic(lineIndex, 'Unreachable code detected.', DiagnosticSeverity.Warning);
+            } else {
+                // If it is control flow (e.g. End If, Else), we assume code becomes reachable or flow merges.
+                this.isUnreachable = false;
+            }
+        }
+
+        // Check if this line makes subsequent code unreachable
+        if (VAL_RETURN_REGEX.test(trimmed) || VAL_EXIT_REGEX.test(trimmed)) {
+            this.isUnreachable = true;
+        }
     }
 
     /**

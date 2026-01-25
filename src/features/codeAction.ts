@@ -190,6 +190,58 @@ export function onCodeAction(
                 actions.push(action);
                 Logger.debug(`CodeAction: Proposed "Add '${closeStmt}'" at line ${insertPos.line}`);
             }
+        } else if (diagnostic.message.includes('is declared but never used')) {
+            // Unused variable diagnostic
+            // Range is the selectionRange (just the name)
+            // But validation.ts reports it on `sym.selectionRange`.
+            // Ideally we want to remove the whole line if it's "Dim x As Integer".
+            // But what if it is "Dim x, y As Integer"?
+            // If we assume "Dim x As Integer" (standard), we can check the line content.
+
+            const range = diagnostic.range;
+            const lineText = document.getText({
+                start: { line: range.start.line, character: 0 },
+                end: { line: range.start.line + 1, character: 0 }
+            }); // Get full line with newline
+
+            // Check if line contains only this declaration
+            // Regex to match "Dim <name> [As Type] ['Comment]"
+            // We just check if there are other statements.
+            // If the line is trimmed and starts with Dim and the variable is unused...
+            // It's safer to just remove the range provided by diagnostic?
+            // No, that's just the name 'x'. Removing 'x' leaves "Dim  As Integer". Bad.
+
+            // Let's rely on finding the "Dim ... " statement that contains this range.
+            // Simplified: If the line contains "Dim <name>" and nothing else (ignoring type and comments), remove line.
+
+            const trimmed = lineText.trim();
+            // Ensure no other statements on the same line (no ':')
+            // Ensure no initialization (no '=') to avoid removing side-effects (e.g., Dim x = CallFunc())
+            // Ensure no multiple declarations (no ',')
+            if (
+                !trimmed.includes(':') &&
+                !trimmed.includes('=') &&
+                !trimmed.includes(',') &&
+                trimmed.toLowerCase().startsWith('dim')
+            ) {
+                // Remove whole line
+                const action = {
+                    title: 'Remove unused variable',
+                    kind: CodeActionKind.QuickFix,
+                    diagnostics: [diagnostic],
+                    edit: {
+                        changes: {
+                            [document.uri]: [
+                                TextEdit.del({
+                                    start: { line: range.start.line, character: 0 },
+                                    end: { line: range.start.line + 1, character: 0 }
+                                })
+                            ]
+                        }
+                    }
+                };
+                actions.push(action);
+            }
         }
     }
 
