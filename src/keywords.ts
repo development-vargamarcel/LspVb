@@ -34,5 +34,10 @@ export const KEYWORDS: Record<string, { label: string; detail: string; documenta
     'const': { label: 'Const', detail: 'Const keyword', documentation: 'Declares and defines one or more constants.', kind: CompletionItemKind.Keyword },
     'true': { label: 'True', detail: 'True literal', documentation: 'Represents a Boolean value.', kind: CompletionItemKind.Keyword },
     'false': { label: 'False', detail: 'False literal', documentation: 'Represents a Boolean value.', kind: CompletionItemKind.Keyword },
-    'new': { label: 'New', detail: 'New keyword', documentation: 'Creates a new object instance.', kind: CompletionItemKind.Keyword }
+    'new': { label: 'New', detail: 'New keyword', documentation: 'Creates a new object instance.', kind: CompletionItemKind.Keyword },
+    'throw': { label: 'Throw', detail: 'Throw keyword', documentation: 'Throws an exception within a procedure.', kind: CompletionItemKind.Keyword },
+    'try': { label: 'Try', detail: 'Try keyword', documentation: 'Starts a Try...Catch...Finally block.', kind: CompletionItemKind.Keyword },
+    'catch': { label: 'Catch', detail: 'Catch keyword', documentation: 'Introduces a statement block to be executed if an exception is thrown in the Try block.', kind: CompletionItemKind.Keyword },
+    'finally': { label: 'Finally', detail: 'Finally keyword', documentation: 'Introduces a statement block to be executed when execution leaves a Try...Catch structure.', kind: CompletionItemKind.Keyword },
+    'end try': { label: 'End Try', detail: 'End Try keyword', documentation: 'Ends a Try...Catch...Finally block.', kind: CompletionItemKind.Keyword }
 };

@@ -22,12 +22,16 @@ import {
     VAL_IF_LINE_REGEX,
     VAL_THEN_REGEX,
     VAL_RETURN_REGEX,
-    VAL_EXIT_REGEX
+    VAL_EXIT_REGEX,
+    VAL_THROW_REGEX
 } from '../utils/regexes';
 import { stripComment } from '../utils/textUtils';
 import { Logger } from '../utils/logger';
 import { parseDocumentSymbols } from '../utils/parser';
 
+/**
+ * Represents a code block context on the stack.
+ */
 interface BlockContext {
     type: string;
     line: number;
@@ -230,7 +234,11 @@ class Validator {
                 /^(Else|ElseIf|Case)\b/i.test(trimmed);
 
             if (!isControlFlow) {
-                this.addDiagnostic(lineIndex, 'Unreachable code detected.', DiagnosticSeverity.Warning);
+                this.addDiagnostic(
+                    lineIndex,
+                    'Unreachable code detected.',
+                    DiagnosticSeverity.Warning
+                );
             } else {
                 // If it is control flow (e.g. End If, Else), we assume code becomes reachable or flow merges.
                 this.isUnreachable = false;
@@ -238,7 +246,11 @@ class Validator {
         }
 
         // Check if this line makes subsequent code unreachable
-        if (VAL_RETURN_REGEX.test(trimmed) || VAL_EXIT_REGEX.test(trimmed)) {
+        if (
+            VAL_RETURN_REGEX.test(trimmed) ||
+            VAL_EXIT_REGEX.test(trimmed) ||
+            VAL_THROW_REGEX.test(trimmed)
+        ) {
             this.isUnreachable = true;
         }
     }

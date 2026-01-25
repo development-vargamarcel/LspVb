@@ -64,6 +64,8 @@ export const VAL_CONST_REGEX = new RegExp(
 export const VAL_RETURN_REGEX = /^\s*Return\b/i;
 /** Regex for detecting Exit statements. Group 1: Sub|Function|... */
 export const VAL_EXIT_REGEX = /^\s*Exit\s+(Sub|Function|Property|Do|For|Select|While)\b/i;
+/** Regex for detecting Throw statements. */
+export const VAL_THROW_REGEX = /^\s*Throw\b/i;
 
 /** Regex for identifying an If statement line. */
 export const VAL_IF_LINE_REGEX = /^\s*If\s+.*$/i;

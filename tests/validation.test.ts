@@ -215,4 +215,16 @@ End Sub
         const warning = diagnostics.find(d => d.message.includes('Unreachable code detected'));
         expect(warning).to.not.exist;
     });
+
+    it('should detect unreachable code after Throw', () => {
+        const doc = createDoc(`
+Sub Test()
+    Throw New Exception("Error")
+    x = 1
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        const warning = diagnostics.find(d => d.message.includes('Unreachable code detected'));
+        expect(warning).to.exist;
+    });
 });
