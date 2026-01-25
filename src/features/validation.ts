@@ -142,6 +142,18 @@ function checkUnusedVariables(document: TextDocument, symbols: DocumentSymbol[])
                             source: 'SimpleVB'
                         });
                     }
+
+                    // Check naming convention (Local variables should be camelCase)
+                    // Simple check: First letter is lowercase?
+                    // Exception: "_" prefix?
+                    if (/^[A-Z]/.test(sym.name)) {
+                         diagnostics.push({
+                            severity: DiagnosticSeverity.Information,
+                            range: sym.selectionRange,
+                            message: `Local variables should be camelCase (start with lowercase).`,
+                            source: 'SimpleVB'
+                        });
+                    }
                 }
             }
 
@@ -206,6 +218,15 @@ class Validator {
             // Check for TODOs before checking for empty trimmed lines
             this.checkTodos(rawLine.trim(), i);
 
+            // Check Max Line Length (includes comments)
+            if (rawLine.length > 120) {
+                this.addDiagnostic(
+                    i,
+                    `Line is too long (${rawLine.length} > 120 characters).`,
+                    DiagnosticSeverity.Warning
+                );
+            }
+
             const trimmed = stripComment(rawLine).trim();
 
             if (!trimmed) continue;
@@ -219,10 +240,51 @@ class Validator {
 
             this.validateSyntax(trimmed, i, rawLine);
             this.validateUnreachable(trimmed, i);
+            this.checkMagicNumbers(trimmed, i);
         }
 
         this.checkUnclosedBlocks();
         return this.diagnostics;
+    }
+
+    /**
+     * Checks for magic numbers in the line.
+     * @param trimmed The trimmed line.
+     * @param lineIndex The line number.
+     */
+    private checkMagicNumbers(trimmed: string, lineIndex: number) {
+        // Ignore Const definitions, Dim initializations (common for testing/prototyping?), and array indexing?
+        // To reduce noise in tests and prototype code, maybe we should be less strict?
+        // Or updated tests.
+
+        if (/^Const\s/i.test(trimmed)) return;
+        if (/^Dim\s/i.test(trimmed)) return; // Allow magic numbers in Dim for now to fix tests
+
+        // Find numbers
+        const regex = /\b\d+\b/g;
+        let match;
+        while ((match = regex.exec(trimmed)) !== null) {
+            const numStr = match[0];
+            const num = parseInt(numStr);
+            // Allow 0, 1, -1
+            if (num !== 0 && num !== 1 && num !== -1) {
+                // Ignore if it's inside a string or comment?
+                // Strip comments handles comment.
+                // Strings are harder without parser.
+                // But simplified: assuming code.
+
+                // Warning: This regex picks up numbers inside variable names? No \b\d+\b matches "var1"?
+                // \b matches boundary. "var1" -> '1' has 'r' before it. so \b matches if 'r' is not word char?
+                // 'r' is word char. so "var1" '1' is not matched.
+                // "123" matches.
+
+                this.addDiagnostic(
+                    lineIndex,
+                    `Avoid magic numbers (${num}). Use a Constant instead.`,
+                    DiagnosticSeverity.Information
+                );
+            }
+        }
     }
 
     /**

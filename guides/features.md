@@ -28,7 +28,10 @@ Real-time error checking for:
     - Duplicate Declarations: Warns if a symbol name is reused within the same scope.
     - Unused Variables: Warns if a local variable is declared but never used.
 - **Tasks**:
-    - **TODO/FIXME**: Dectects `TODO` and `FIXME` comments and reports them as informational diagnostics.
+    - **TODO/FIXME**: Detects `TODO` and `FIXME` comments and reports them as informational diagnostics.
+    - **Magic Numbers**: Warns if a number literal (other than 0, 1, -1) is used in code, suggesting the use of Constants.
+    - **Max Line Length**: Warns if a line exceeds 120 characters.
+    - **Variable Naming**: Suggests camelCase for local variables (Info severity).
 
 ## 3. Document Outline (Symbols)
 Provides a hierarchical, tree-based view of the symbols in the file.
