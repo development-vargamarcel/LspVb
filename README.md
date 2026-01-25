@@ -22,6 +22,8 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Signature Help**: Parameter hints for function and subroutine calls.
 - **Semantic Tokens**: Syntax highlighting for different symbol types (classes, variables, etc.).
 - **Document Highlight**: Highlights all occurrences of a symbol in the editor.
+- **Inlay Hints**: Displays parameter names inline for function and subroutine calls.
+- **Code Lens**: Displays reference counts for classes and methods (informational).
 
 ## Architecture
 

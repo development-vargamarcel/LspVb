@@ -24,6 +24,7 @@ Real-time error checking for:
     - `Exit`: Validates that `Exit Sub`, `Exit For`, etc., are used within the correct block type.
 - **Scope**:
     - Duplicate Declarations: Warns if a symbol name is reused within the same scope.
+    - Unused Variables: Warns if a local variable is declared but never used.
 
 ## 3. Document Outline (Symbols)
 Provides a hierarchical, tree-based view of the symbols in the file.

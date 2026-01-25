@@ -587,6 +587,7 @@ class Validator {
      * @param severity The severity.
      */
     private addDiagnostic(line: number, message: string, severity: DiagnosticSeverity) {
+        Logger.debug(`Validator: Added diagnostic at line ${line}: ${message}`);
         this.diagnostics.push({
             severity,
             range: Range.create(line, 0, line, this.lines[line].length),
