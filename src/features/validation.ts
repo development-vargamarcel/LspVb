@@ -120,10 +120,7 @@ function checkUnusedVariables(document: TextDocument, symbols: DocumentSymbol[])
                     // Count occurrences within the parent scope
                     let count = 0;
                     for (const lineIdx of occurrences) {
-                        if (
-                            lineIdx >= parentRange.start.line &&
-                            lineIdx <= parentRange.end.line
-                        ) {
+                        if (lineIdx >= parentRange.start.line && lineIdx <= parentRange.end.line) {
                             count++;
                         }
                     }
