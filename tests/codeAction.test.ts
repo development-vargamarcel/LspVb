@@ -164,7 +164,7 @@ End Sub
         expect(removeAction).to.not.exist;
     });
 
-    it('should NOT provide code action to remove unused variable if multiple declarations on line', () => {
+    it('should remove unused variable from multiple declarations', () => {
         const text = `
 Sub MySub()
     Dim x, y As Integer
@@ -188,7 +188,43 @@ End Sub
         const actions = onCodeAction(params, document);
 
         const removeAction = actions.find((a: any) => a.title === 'Remove unused variable');
-        expect(removeAction).to.not.exist;
+        expect(removeAction).to.exist;
+        const edit = (removeAction as CodeAction).edit!.changes!['file:///test.vb'][0];
+        // Should replace "x, " with empty string? Or "Dim x, y" -> "Dim y"
+        expect(edit.newText).to.equal('');
+        // Range should cover "x, "
+        expect(document.getText(edit.range)).to.equal('x, ');
+    });
+
+    it('should remove last unused variable from multiple declarations', () => {
+        const text = `
+Sub MySub()
+    Dim x, y As Integer
+End Sub
+`;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+
+        const diagnostic: Diagnostic = {
+            message: "Variable 'y' is declared but never used.",
+            range: Range.create(2, 11, 2, 12),
+            severity: DiagnosticSeverity.Information,
+            source: 'SimpleVB'
+        };
+
+        const params: any = {
+            textDocument: { uri: 'file:///test.vb' },
+            range: diagnostic.range,
+            context: { diagnostics: [diagnostic] }
+        };
+
+        const actions = onCodeAction(params, document);
+
+        const removeAction = actions.find((a: any) => a.title === 'Remove unused variable');
+        expect(removeAction).to.exist;
+        const edit = (removeAction as CodeAction).edit!.changes!['file:///test.vb'][0];
+        // Should replace ", y" with empty string
+        expect(edit.newText).to.equal('');
+        expect(document.getText(edit.range)).to.equal(', y');
     });
 
     it('should provide extract constant action for magic number', () => {

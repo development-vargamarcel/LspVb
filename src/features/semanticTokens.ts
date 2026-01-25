@@ -93,12 +93,24 @@ function traverseSymbols(builder: SemanticTokensBuilder, symbols: DocumentSymbol
     for (const symbol of symbols) {
         const typeIndex = getTokenTypeIndex(symbol.kind);
         if (typeIndex !== -1) {
+            let modifiers = 0;
+            // Add readonly modifier for constants
+            if (symbol.kind === SymbolKind.Constant) {
+                // 'readonly' is index 2 in tokenModifiers array?
+                // tokenModifiers = ['declaration', 'definition', 'readonly', ...]
+                // readonly is index 2. 1 << 2 = 4.
+                const readonlyIndex = tokenModifiersMap.get('readonly');
+                if (readonlyIndex !== undefined) {
+                    modifiers |= (1 << readonlyIndex);
+                }
+            }
+
             builder.push(
                 symbol.selectionRange.start.line,
                 symbol.selectionRange.start.character,
                 symbol.selectionRange.end.character - symbol.selectionRange.start.character,
                 typeIndex,
-                0 // Modifiers could be improved based on detail/modifiers
+                modifiers
             );
         }
 
