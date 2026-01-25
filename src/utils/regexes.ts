@@ -64,6 +64,8 @@ export const VAL_CONST_REGEX = new RegExp(
 export const VAL_RETURN_REGEX = /^\s*Return\b/i;
 /** Regex for detecting Exit statements. Group 1: Sub|Function|... */
 export const VAL_EXIT_REGEX = /^\s*Exit\s+(Sub|Function|Property|Do|For|Select|While)\b/i;
+/** Regex for detecting Throw statements. */
+export const VAL_THROW_REGEX = /^\s*Throw\b/i;
 
 /** Regex for identifying an If statement line. */
 export const VAL_IF_LINE_REGEX = /^\s*If\s+.*$/i;
@@ -90,11 +92,16 @@ export const FOLD_NEXT_REGEX = /^\s*Next(\s+|$)/i;
 export const FOLD_WEND_REGEX = /^\s*Wend(\s+|$)/i;
 /** Regex for identifying Loop for folding. */
 export const FOLD_LOOP_REGEX = /^\s*Loop(\s+|$)/i;
+/** Regex for identifying Region end for folding. */
+export const FOLD_REGION_END_REGEX = /^\s*#End\s+Region\b/i;
+
 /** Regex for identifying block starts for folding. */
 export const FOLD_BLOCK_START_REGEX = new RegExp(
     `^(?:(?:${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Structure|Interface|Enum)\\b`,
     'i'
 );
+/** Regex for identifying Region start for folding. */
+export const FOLD_REGION_START_REGEX = /^\s*#Region\b/i;
 /** Regex for identifying If...Then starts for folding. */
 export const FOLD_IF_START_REGEX = /^\s*If\b.*?\bThen\s*$/i;
 /** Regex for identifying For loops for folding. */

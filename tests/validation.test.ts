@@ -11,6 +11,7 @@ describe('Validation Tests', () => {
         const doc = createDoc(`
 Sub Test()
     Dim x As Integer
+    x = 1
 `);
         const diagnostics = validateTextDocument(doc);
         expect(diagnostics).to.have.lengthOf(1);
@@ -175,5 +176,55 @@ End Sub
         const diagnostics = validateTextDocument(doc);
         const warning = diagnostics.find(d => d.message.includes('Variable declaration without type'));
         expect(warning).to.not.exist;
+    });
+
+    it('should detect unreachable code after Return', () => {
+        const doc = createDoc(`
+Sub Test()
+    Return
+    x = 1
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        const warning = diagnostics.find(d => d.message.includes('Unreachable code detected'));
+        expect(warning).to.exist;
+    });
+
+    it('should reset unreachable state after block end', () => {
+        const doc = createDoc(`
+Sub Test()
+    If True Then
+        Return
+    End If
+    x = 1
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        const warning = diagnostics.find(d => d.message.includes('Unreachable code detected'));
+        expect(warning).to.not.exist;
+    });
+
+    it('should NOT report unreachable code for conditional Return (Single Line)', () => {
+        const doc = createDoc(`
+Sub Test()
+    If True Then Return
+    x = 1
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        const warning = diagnostics.find(d => d.message.includes('Unreachable code detected'));
+        expect(warning).to.not.exist;
+    });
+
+    it('should detect unreachable code after Throw', () => {
+        const doc = createDoc(`
+Sub Test()
+    Throw New Exception("Error")
+    x = 1
+End Sub
+`);
+        const diagnostics = validateTextDocument(doc);
+        const warning = diagnostics.find(d => d.message.includes('Unreachable code detected'));
+        expect(warning).to.exist;
     });
 });

@@ -3,7 +3,8 @@ import {
     DiagnosticSeverity,
     TextDocument,
     Range,
-    DocumentSymbol
+    DocumentSymbol,
+    SymbolKind
 } from 'vscode-languageserver/node';
 import {
     VAL_BLOCK_START_REGEX,
@@ -21,12 +22,16 @@ import {
     VAL_IF_LINE_REGEX,
     VAL_THEN_REGEX,
     VAL_RETURN_REGEX,
-    VAL_EXIT_REGEX
+    VAL_EXIT_REGEX,
+    VAL_THROW_REGEX
 } from '../utils/regexes';
 import { stripComment } from '../utils/textUtils';
 import { Logger } from '../utils/logger';
 import { parseDocumentSymbols } from '../utils/parser';
 
+/**
+ * Represents a code block context on the stack.
+ */
 interface BlockContext {
     type: string;
     line: number;
@@ -47,6 +52,10 @@ export function validateTextDocument(textDocument: TextDocument): Diagnostic[] {
     const symbols = parseDocumentSymbols(textDocument);
     const duplicateDiagnostics = checkDuplicates(symbols);
     diagnostics.push(...duplicateDiagnostics);
+
+    // Check for unused variables
+    const unusedDiagnostics = checkUnusedVariables(textDocument, symbols);
+    diagnostics.push(...unusedDiagnostics);
 
     Logger.log(
         `Validation finished for ${textDocument.uri}. Found ${diagnostics.length} diagnostics.`
@@ -85,6 +94,92 @@ function checkDuplicates(symbols: DocumentSymbol[]): Diagnostic[] {
 }
 
 /**
+ * Checks for unused variables within methods/functions.
+ * @param document The text document.
+ * @param symbols The document symbols.
+ * @returns A list of diagnostics for unused variables.
+ */
+function checkUnusedVariables(document: TextDocument, symbols: DocumentSymbol[]): Diagnostic[] {
+    const diagnostics: Diagnostic[] = [];
+    const text = document.getText();
+    const lines = text.split(/\r?\n/);
+    const wordIndex = buildWordIndex(lines);
+
+    const traverse = (syms: DocumentSymbol[], parent: DocumentSymbol | null) => {
+        for (const sym of syms) {
+            if (sym.kind === SymbolKind.Variable) {
+                // Only check local variables (inside Method, Function, Property)
+                // We determine "local" if the parent is one of these types.
+                if (
+                    parent &&
+                    (parent.kind === SymbolKind.Method ||
+                        parent.kind === SymbolKind.Function ||
+                        parent.kind === SymbolKind.Property ||
+                        parent.kind === SymbolKind.Constructor)
+                ) {
+                    const name = sym.name.toLowerCase();
+                    const occurrences = wordIndex.get(name) || [];
+                    const parentRange = parent.range;
+
+                    // Count occurrences within the parent scope
+                    let count = 0;
+                    for (const lineIdx of occurrences) {
+                        if (lineIdx >= parentRange.start.line && lineIdx <= parentRange.end.line) {
+                            count++;
+                        }
+                    }
+
+                    // If count is 1 (declaration only), report unused
+                    // Note: If multiple variables on one line "Dim x, y", x appears once.
+                    // If "Dim x = x + 1", x appears twice.
+                    if (count <= 1) {
+                        diagnostics.push({
+                            severity: DiagnosticSeverity.Information,
+                            range: sym.selectionRange,
+                            message: `Variable '${sym.name}' is declared but never used.`,
+                            source: 'SimpleVB'
+                        });
+                    }
+                }
+            }
+
+            if (sym.children) {
+                traverse(sym.children, sym);
+            }
+        }
+    };
+
+    traverse(symbols, null);
+    return diagnostics;
+}
+
+/**
+ * Builds a map of word occurrences in the document.
+ * Maps lower-case word -> list of line numbers (one per occurrence).
+ * @param lines The lines of the document.
+ * @returns The word index map.
+ */
+function buildWordIndex(lines: string[]): Map<string, number[]> {
+    const map = new Map<string, number[]>();
+
+    for (let i = 0; i < lines.length; i++) {
+        // Strip comments to ignore usages in comments
+        const line = stripComment(lines[i]);
+        const regex = /\b\w+\b/g;
+        let match;
+        while ((match = regex.exec(line)) !== null) {
+            const word = match[0].toLowerCase();
+            if (!map.has(word)) {
+                map.set(word, []);
+            }
+            map.get(word)!.push(i);
+        }
+    }
+
+    return map;
+}
+
+/**
  * A stateful validator helper that processes the document line by line.
  * It maintains a stack to track block structures (If, For, Sub, etc.).
  */
@@ -92,6 +187,7 @@ class Validator {
     private diagnostics: Diagnostic[] = [];
     private stack: BlockContext[] = [];
     private lines: string[];
+    private isUnreachable = false;
 
     constructor(private document: TextDocument) {
         this.lines = document.getText().split(/\r?\n/);
@@ -109,12 +205,54 @@ class Validator {
 
             if (!trimmed) continue;
 
-            this.validateSyntax(trimmed, i, rawLine);
             this.validateStructure(trimmed, i, rawLine);
+            this.validateSyntax(trimmed, i, rawLine);
+            this.validateUnreachable(trimmed, i);
         }
 
         this.checkUnclosedBlocks();
         return this.diagnostics;
+    }
+
+    /**
+     * Checks for unreachable code.
+     * @param trimmed The trimmed line.
+     * @param lineIndex The line number.
+     */
+    private validateUnreachable(trimmed: string, lineIndex: number) {
+        if (this.isUnreachable) {
+            // Check if this line resets reachability (block ends/starts, Else, Case)
+            // Note: Structure handling happens before this, so stack might have changed.
+            // But we need to check the TEXT of the line.
+
+            const isControlFlow =
+                VAL_BLOCK_START_REGEX.test(trimmed) ||
+                VAL_BLOCK_END_REGEX.test(trimmed) ||
+                VAL_NEXT_REGEX.test(trimmed) ||
+                VAL_LOOP_REGEX.test(trimmed) ||
+                VAL_WEND_REGEX.test(trimmed) ||
+                /^(Else|ElseIf|Case)\b/i.test(trimmed);
+
+            if (!isControlFlow) {
+                this.addDiagnostic(
+                    lineIndex,
+                    'Unreachable code detected.',
+                    DiagnosticSeverity.Warning
+                );
+            } else {
+                // If it is control flow (e.g. End If, Else), we assume code becomes reachable or flow merges.
+                this.isUnreachable = false;
+            }
+        }
+
+        // Check if this line makes subsequent code unreachable
+        if (
+            VAL_RETURN_REGEX.test(trimmed) ||
+            VAL_EXIT_REGEX.test(trimmed) ||
+            VAL_THROW_REGEX.test(trimmed)
+        ) {
+            this.isUnreachable = true;
+        }
     }
 
     /**

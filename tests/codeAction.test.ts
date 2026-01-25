@@ -97,4 +97,97 @@ describe('Code Action Feature', () => {
         const edits = action.edit!.changes![document.uri];
         expect(edits[0].newText).to.equal(" = 0");
     });
+
+    it('should provide code action to remove unused variable', () => {
+        const text = `
+Sub MySub()
+    Dim x As Integer
+    x = 1
+    Dim unused As String
+End Sub
+`;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+
+        // Mock diagnostic
+        const diagnostic: Diagnostic = {
+            message: "Variable 'unused' is declared but never used.",
+            range: Range.create(4, 8, 4, 14), // "unused"
+            severity: DiagnosticSeverity.Information,
+            source: 'SimpleVB'
+        };
+
+        const params: any = {
+            textDocument: { uri: 'file:///test.vb' },
+            range: diagnostic.range,
+            context: { diagnostics: [diagnostic] }
+        };
+
+        const actions = onCodeAction(params, document);
+
+        const removeAction = actions.find((a: any) => a.title === 'Remove unused variable');
+        expect(removeAction).to.exist;
+        expect((removeAction as CodeAction).kind).to.equal(CodeActionKind.QuickFix);
+
+        const edits = (removeAction as CodeAction).edit!.changes!['file:///test.vb'];
+        expect(edits).to.have.lengthOf(1);
+        // Expect deletion of line 4
+        expect(edits[0].range.start.line).to.equal(4);
+        expect(edits[0].range.start.character).to.equal(0);
+        expect(edits[0].range.end.line).to.equal(5);
+        expect(edits[0].range.end.character).to.equal(0);
+    });
+
+    it('should NOT provide code action to remove unused variable if line has side effects', () => {
+        const text = `
+Sub MySub()
+    Dim x = CallFunction()
+End Sub
+`;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+
+        const diagnostic: Diagnostic = {
+            message: "Variable 'x' is declared but never used.",
+            range: Range.create(2, 8, 2, 9),
+            severity: DiagnosticSeverity.Information,
+            source: 'SimpleVB'
+        };
+
+        const params: any = {
+            textDocument: { uri: 'file:///test.vb' },
+            range: diagnostic.range,
+            context: { diagnostics: [diagnostic] }
+        };
+
+        const actions = onCodeAction(params, document);
+
+        const removeAction = actions.find((a: any) => a.title === 'Remove unused variable');
+        expect(removeAction).to.not.exist;
+    });
+
+    it('should NOT provide code action to remove unused variable if multiple declarations on line', () => {
+        const text = `
+Sub MySub()
+    Dim x, y As Integer
+End Sub
+`;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+
+        const diagnostic: Diagnostic = {
+            message: "Variable 'x' is declared but never used.",
+            range: Range.create(2, 8, 2, 9),
+            severity: DiagnosticSeverity.Information,
+            source: 'SimpleVB'
+        };
+
+        const params: any = {
+            textDocument: { uri: 'file:///test.vb' },
+            range: diagnostic.range,
+            context: { diagnostics: [diagnostic] }
+        };
+
+        const actions = onCodeAction(params, document);
+
+        const removeAction = actions.find((a: any) => a.title === 'Remove unused variable');
+        expect(removeAction).to.not.exist;
+    });
 });

@@ -10,7 +10,9 @@ import {
     FOLD_IF_START_REGEX,
     FOLD_FOR_START_REGEX,
     FOLD_WHILE_START_REGEX,
-    FOLD_DO_START_REGEX
+    FOLD_DO_START_REGEX,
+    FOLD_REGION_START_REGEX,
+    FOLD_REGION_END_REGEX
 } from '../utils/regexes';
 
 /**
@@ -45,9 +47,12 @@ export function onFoldingRanges(
         else if (FOLD_NEXT_REGEX.test(line)) endMatch = true;
         else if (FOLD_WEND_REGEX.test(line)) endMatch = true;
         else if (FOLD_LOOP_REGEX.test(line)) endMatch = true;
+        else if (FOLD_REGION_END_REGEX.test(line)) endMatch = true;
 
         if (endMatch) {
             if (stack.length > 0) {
+                // Find nearest matching block type? Or just pop?
+                // Simple stack popping for now.
                 const start = stack.pop();
                 if (start) {
                     // Fold from start line to current line - 1
@@ -76,6 +81,8 @@ export function onFoldingRanges(
             startType = 'while';
         } else if (FOLD_DO_START_REGEX.test(line)) {
             startType = 'do';
+        } else if (FOLD_REGION_START_REGEX.test(line)) {
+            startType = 'region';
         }
 
         if (startType) {
