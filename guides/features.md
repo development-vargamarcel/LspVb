@@ -92,6 +92,9 @@ Provides quick fixes for common errors:
 - **Remove Unused Variable**: Safely removes unused local variables, including handling multiple declarations (e.g., `Dim x, y`).
 - **Extract to Constant**: Extracts a magic number to a `Const` definition.
 
+### Validation of Rename
+- The `Rename` feature now validates the new name to ensure it is a valid identifier (alphanumeric, starts with letter/underscore).
+
 ## 11. Signature Help
 Shows parameter information when typing a function call.
 - Triggered automatically when typing `(` or `,`.

@@ -20,6 +20,13 @@ export function onRenameRequest(
         `Rename requested at ${params.position.line}:${params.position.character} to '${params.newName}'`
     );
     const newName = params.newName;
+
+    // Validate new name
+    if (!/^[a-zA-Z_]\w*$/.test(newName)) {
+        Logger.warn(`Rename: Invalid name '${newName}'. Must start with letter/underscore and contain only alphanumeric characters.`);
+        return null;
+    }
+
     const locations = onReferences(
         {
             textDocument: params.textDocument,

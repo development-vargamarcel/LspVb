@@ -88,5 +88,26 @@ export const SNIPPETS: CompletionItem[] = [
         insertText: 'Try\n\t$0\nCatch ex As Exception\n\t\nEnd Try',
         insertTextFormat: InsertTextFormat.Snippet,
         documentation: 'Try Catch block'
+    },
+    {
+        label: 'Property (Full)',
+        kind: CompletionItemKind.Snippet,
+        insertText: 'Private _${1:name} As ${2:Type}\nPublic Property ${3:Name} As ${2:Type}\n\tGet\n\t\tReturn _${1:name}\n\tEnd Get\n\tSet(value As ${2:Type})\n\t\t_${1:name} = value\n\tEnd Set\nEnd Property',
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: 'Property with backing field'
+    },
+    {
+        label: 'Select Case (Default)',
+        kind: CompletionItemKind.Snippet,
+        insertText: 'Select Case ${1:expression}\n\tCase ${2:value}\n\t\t$0\n\tCase Else\n\t\t\nEnd Select',
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: 'Select Case with Case Else'
+    },
+    {
+        label: 'Console.WriteLine',
+        kind: CompletionItemKind.Snippet,
+        insertText: 'Console.WriteLine(${1:value})',
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: 'Write line to console'
     }
 ];
