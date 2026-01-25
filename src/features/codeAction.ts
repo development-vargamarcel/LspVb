@@ -8,6 +8,7 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
+import { parseDocumentSymbols, getSymbolContainingPosition } from '../utils/parser';
 
 /**
  * Handles code action requests.
@@ -117,6 +118,100 @@ export function onCodeAction(
             };
             actions.push(action);
             Logger.debug(`CodeAction: Proposed "Add 'As Object'" at line ${range.start.line}`);
+        } else if (
+            diagnostic.message.includes('missing a return type') ||
+            diagnostic.message.includes('missing type after')
+        ) {
+            // "Function 'Foo' is missing a return type"
+            // We want to append " As Object" after the function name/parens.
+            // But validation logic checked the line.
+            // If it's a multiline definition, this might be tricky.
+            // Assuming single line or ends on this line.
+
+            const range = diagnostic.range;
+            const lineText = document.getText(range);
+            const commentIndex = lineText.indexOf("'");
+            let insertPos = range.end;
+
+            if (commentIndex !== -1) {
+                insertPos = { line: range.start.line, character: commentIndex };
+            }
+
+            // Append " As Object"
+            let textToInsert = ' As Object';
+
+            // Check if line already ends with " As" (missing type case)
+            if (
+                /\bAs\s*$/i.test(
+                    lineText.substring(0, commentIndex === -1 ? undefined : commentIndex).trimEnd()
+                )
+            ) {
+                textToInsert = ' Object';
+            }
+
+            const edit: WorkspaceEdit = {
+                changes: {
+                    [document.uri]: [TextEdit.insert(insertPos, textToInsert)]
+                }
+            };
+
+            const action = {
+                title: "Add 'As Object'",
+                kind: CodeActionKind.QuickFix,
+                diagnostics: [diagnostic],
+                edit: edit
+            };
+            actions.push(action);
+            Logger.debug(
+                `CodeAction: Proposed "Add 'As Object' (Return Type)" at line ${range.start.line}`
+            );
+        } else if (diagnostic.message.includes('Avoid magic numbers')) {
+            // "Avoid magic numbers (100). Use a Constant instead."
+            const match = /magic numbers \((\d+)\)/.exec(diagnostic.message);
+            if (match) {
+                const value = match[1];
+                const constName = `CONST_${value}`; // Simple generation strategy
+
+                // Find where to insert: Start of the containing method/block?
+                const symbols = parseDocumentSymbols(document);
+                const container = getSymbolContainingPosition(symbols, diagnostic.range.start);
+
+                let insertPos = { line: 0, character: 0 };
+                let indentation = '';
+
+                if (container) {
+                    // Insert at start of container (after definition)
+                    // container.range.start is the definition line.
+                    // We want to insert after that line.
+                    insertPos = { line: container.range.start.line + 1, character: 0 };
+
+                    // Try to match indentation of the container's content?
+                    // Usually indentation of container + 1 level?
+                    // Or just use 4 spaces/1 tab.
+                    // Let's assume standard indentation.
+                    indentation = '\t';
+                }
+
+                const constDecl = `${indentation}Const ${constName} = ${value}\n`;
+
+                const edit: WorkspaceEdit = {
+                    changes: {
+                        [document.uri]: [
+                            TextEdit.insert(insertPos, constDecl),
+                            TextEdit.replace(diagnostic.range, constName)
+                        ]
+                    }
+                };
+
+                const action = {
+                    title: 'Extract to Constant',
+                    kind: CodeActionKind.RefactorExtract,
+                    diagnostics: [diagnostic],
+                    edit: edit
+                };
+                actions.push(action);
+                Logger.debug(`CodeAction: Proposed "Extract to Constant" for ${value}`);
+            }
         } else if (diagnostic.message.includes('Const declaration requires a value')) {
             // Range is line. regex `Const x`.
             // Append " = 0"
@@ -217,30 +312,99 @@ export function onCodeAction(
             const trimmed = lineText.trim();
             // Ensure no other statements on the same line (no ':')
             // Ensure no initialization (no '=') to avoid removing side-effects (e.g., Dim x = CallFunc())
-            // Ensure no multiple declarations (no ',')
+
             if (
                 !trimmed.includes(':') &&
                 !trimmed.includes('=') &&
-                !trimmed.includes(',') &&
                 trimmed.toLowerCase().startsWith('dim')
             ) {
-                // Remove whole line
-                const action = {
-                    title: 'Remove unused variable',
-                    kind: CodeActionKind.QuickFix,
-                    diagnostics: [diagnostic],
-                    edit: {
-                        changes: {
-                            [document.uri]: [
-                                TextEdit.del({
-                                    start: { line: range.start.line, character: 0 },
-                                    end: { line: range.start.line + 1, character: 0 }
-                                })
-                            ]
+                // Check for multiple declarations
+                if (!trimmed.includes(',')) {
+                    // Simple case: Single declaration. Remove whole line.
+                    const action = {
+                        title: 'Remove unused variable',
+                        kind: CodeActionKind.QuickFix,
+                        diagnostics: [diagnostic],
+                        edit: {
+                            changes: {
+                                [document.uri]: [
+                                    TextEdit.del({
+                                        start: { line: range.start.line, character: 0 },
+                                        end: { line: range.start.line + 1, character: 0 }
+                                    })
+                                ]
+                            }
+                        }
+                    };
+                    actions.push(action);
+                } else {
+                    // Multiple declarations: Dim x, y As Integer
+                    // We need to remove the variable name and its associated comma.
+                    // diagnostic.range covers just the name.
+
+                    // We need to find where this variable is in the line to know if we remove comma before or after.
+                    // Case 1: "Dim x, y" -> Remove "x, " -> "Dim y"
+                    // Case 2: "Dim x, y" -> Remove ", y" -> "Dim x"
+                    // Case 3: "Dim x, y, z" -> Remove ", y" -> "Dim x, z" (or "y, ")
+
+                    // Get text before and after the range within the line
+                    const startChar = range.start.character;
+                    const endChar = range.end.character;
+
+                    // Check character immediately after name (skipping whitespace)
+                    let afterIndex = endChar;
+                    while (afterIndex < lineText.length && /\s/.test(lineText[afterIndex])) {
+                        afterIndex++;
+                    }
+
+                    let deleteRangeStart = range.start;
+                    let deleteRangeEnd = range.end;
+
+                    let commaFound = false;
+
+                    if (afterIndex < lineText.length && lineText[afterIndex] === ',') {
+                        // Comma after: Remove "Name, " (and trailing spaces)
+                        deleteRangeEnd = { line: range.end.line, character: afterIndex + 1 };
+                        // Consume spaces after comma too? "Dim x, y" -> remove "x, " -> "Dim y"
+                        let nextStart = afterIndex + 1;
+                        while (nextStart < lineText.length && /\s/.test(lineText[nextStart])) {
+                            nextStart++;
+                        }
+                        deleteRangeEnd = { line: range.end.line, character: nextStart };
+                        commaFound = true;
+                    } else {
+                        // Check comma before: "Dim x, y" -> Remove ", y" (and preceding spaces)
+                        let beforeIndex = startChar - 1;
+                        while (beforeIndex >= 0 && /\s/.test(lineText[beforeIndex])) {
+                            beforeIndex--;
+                        }
+
+                        if (beforeIndex >= 0 && lineText[beforeIndex] === ',') {
+                            // Comma before
+                            deleteRangeStart = { line: range.start.line, character: beforeIndex };
+                            commaFound = true;
                         }
                     }
-                };
-                actions.push(action);
+
+                    if (commaFound) {
+                        const action = {
+                            title: 'Remove unused variable',
+                            kind: CodeActionKind.QuickFix,
+                            diagnostics: [diagnostic],
+                            edit: {
+                                changes: {
+                                    [document.uri]: [
+                                        TextEdit.del({
+                                            start: deleteRangeStart,
+                                            end: deleteRangeEnd
+                                        })
+                                    ]
+                                }
+                            }
+                        };
+                        actions.push(action);
+                    }
+                }
             }
         }
     }

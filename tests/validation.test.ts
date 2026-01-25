@@ -1,19 +1,27 @@
 import { expect } from 'chai';
 import { validateTextDocument } from '../src/features/validation';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { DiagnosticSeverity } from 'vscode-languageserver/node';
 
 function createDoc(content: string): TextDocument {
     return TextDocument.create('test://test.vb', 'vb', 1, content);
 }
 
 describe('Validation Tests', () => {
+    // Helper to filter out Information diagnostics (Magic Numbers, TODOs, Naming)
+    // so we can focus on Errors and Warnings in structural tests
+    function validateAndFilter(doc: TextDocument) {
+        const diagnostics = validateTextDocument(doc);
+        return diagnostics.filter(d => d.severity !== DiagnosticSeverity.Information);
+    }
+
     it('should detect missing End Sub', () => {
         const doc = createDoc(`
 Sub Test()
     Dim x As Integer
     x = 1
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.have.lengthOf(1);
         expect(diagnostics[0].message).to.contain('Missing closing statement');
     });
@@ -26,7 +34,7 @@ Sub Test()
     End If
 End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics.some(d => d.message.includes("Missing 'Then'"))).to.be.true;
     });
 
@@ -36,7 +44,7 @@ Sub Test()
     Dim x
 End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics.some(d => d.message.includes("Variable declaration without type"))).to.be.true;
     });
 
@@ -48,7 +56,7 @@ Sub Test()
     End If
 End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.have.lengthOf(0);
     });
 
@@ -58,7 +66,7 @@ Sub Test()
     If x = 1 Then x = 2
 End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.have.lengthOf(0);
     });
 
@@ -68,7 +76,7 @@ Sub Test()
     If x = 1 Then
     End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.not.be.empty;
         expect(diagnostics[0].message).to.contain('Mismatched block');
     });
@@ -83,7 +91,7 @@ Sub Test()
     End If
 End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.have.lengthOf(0);
     });
 
@@ -98,7 +106,7 @@ Sub Test()
     End Select
 End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.have.lengthOf(0);
     });
 
@@ -110,7 +118,7 @@ Sub Test()
     Loop
 End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.have.lengthOf(0);
     });
 
@@ -122,7 +130,7 @@ Sub Test() ' Start of Sub
     End If ' end if
 End Sub ' End of Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.have.lengthOf(0);
     });
 
@@ -134,7 +142,7 @@ Sub Test()
     Wend
 End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.have.lengthOf(0);
     });
 
@@ -147,10 +155,11 @@ Sub Test()
     End If
 End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.not.be.empty;
         // It should complain about Next missing or mismatched End If
-        expect(diagnostics[0].message).to.contain('Mismatched block');
+        const error = diagnostics.find(d => d.message.includes('Mismatched block'));
+        expect(error).to.exist;
     });
 
     it('should correctly handle quotes containing single quotes', () => {
@@ -163,7 +172,7 @@ Sub Test()
     End If
 End Sub
 `);
-        const diagnostics = validateTextDocument(doc);
+        const diagnostics = validateAndFilter(doc);
         expect(diagnostics).to.have.lengthOf(0);
     });
 

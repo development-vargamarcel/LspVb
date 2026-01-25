@@ -11,14 +11,17 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
     - **Flow Control**: Validation for `Return` statements (context and value) and `Exit` statements (matching block type).
     - **Scope**: Detection of duplicate variable/symbol declarations within the same scope.
     - **Unused Variables**: Detection of local variables that are declared but never used.
+    - **Code Style**: Checks for Max Line Length, Magic Numbers, and Variable Naming conventions.
+    - **Tasks**: Detects `TODO` and `FIXME` comments.
 - **Document Symbols**: Outline view support for Sub, Function, Class, Module, Property, Structure, Interface, Enum, Constants, and Variables.
 - **Hover Information**: Basic hover support for keywords and user-defined symbols.
-- **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.).
+- **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.) and comment blocks.
 - **Formatting**: Auto-formatting support for indentation of blocks and nested structures.
 - **Go to Definition**: Jump to the definition of a symbol within the same file.
+- **Go to Type Definition**: Jump to the definition of a variable's type.
 - **Find References**: Find all occurrences of a symbol within the same file (scope-aware).
 - **Rename**: Rename a symbol and all its occurrences (scope-aware).
-- **Code Actions**: Quick fixes for common errors (e.g., adding missing `Then`, `As`, or closing statements).
+- **Code Actions**: Quick fixes for common errors (missing `Then`, `As`, return types), removing unused variables, and extracting constants.
 - **Signature Help**: Parameter hints for function and subroutine calls.
 - **Semantic Tokens**: Syntax highlighting for different symbol types (classes, variables, etc.).
 - **Document Highlight**: Highlights all occurrences of a symbol in the editor.

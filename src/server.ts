@@ -55,6 +55,7 @@ import { onCompletion, onCompletionResolve } from './features/completion';
 import { onHover } from './features/hover';
 import { onFoldingRanges } from './features/folding';
 import { onDefinition } from './features/definition';
+import { onTypeDefinition } from './features/typeDefinition';
 import { onReferences } from './features/references';
 import { onRenameRequest } from './features/rename';
 import { onCodeAction } from './features/codeAction';
@@ -194,6 +195,16 @@ connection.onDefinition(
         Logger.log(`Definition requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
         return onDefinition(params, document);
     }, null, 'Definition')
+);
+
+// This handler provides type definition lookup
+connection.onTypeDefinition(
+    safeHandler((params: DefinitionParams): Definition | null => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return null;
+        Logger.log(`Type Definition requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
+        return onTypeDefinition(params, document);
+    }, null, 'TypeDefinition')
 );
 
 // This handler provides references lookup

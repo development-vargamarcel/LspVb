@@ -6,6 +6,7 @@ import {
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
 import { parseDocumentSymbols, findSymbolInScope } from '../utils/parser';
+import { BUILTINS } from '../builtins';
 
 /**
  * Handles signature help requests.
@@ -57,6 +58,35 @@ export function onSignatureHelp(
 
                 if (functionName) {
                     Logger.debug(`SignatureHelp: Identified function call '${functionName}'.`);
+
+                    // Determine active parameter
+                    let activeParameter = 0;
+                    let innerLevel = 0;
+                    for (let j = nameEnd + 1; j < offset; j++) {
+                        const c = text[j];
+                        if (c === '(') innerLevel++;
+                        else if (c === ')') innerLevel--;
+                        else if (c === ',' && innerLevel === 0) activeParameter++;
+                    }
+
+                    // 1. Check Built-ins
+                    const builtin = BUILTINS[functionName.toLowerCase()];
+                    if (builtin) {
+                        Logger.debug(`SignatureHelp: Found builtin '${functionName}'.`);
+                        return {
+                            signatures: [
+                                {
+                                    label: builtin.detail,
+                                    documentation: builtin.documentation,
+                                    parameters: builtin.parameters || []
+                                }
+                            ],
+                            activeSignature: 0,
+                            activeParameter: activeParameter
+                        };
+                    }
+
+                    // 2. Check User Symbols
                     const symbols = parseDocumentSymbols(document);
                     const symbol = findSymbolInScope(
                         symbols,
@@ -91,18 +121,6 @@ export function onSignatureHelp(
                                     label: p.trim()
                                 });
                             }
-                        }
-
-                        // Determine active parameter
-                        // Count commas between nameEnd and offset, respecting nested parens/strings?
-                        // Simplified: just count commas in the current level.
-                        let activeParameter = 0;
-                        let innerLevel = 0;
-                        for (let j = nameEnd + 1; j < offset; j++) {
-                            const c = text[j];
-                            if (c === '(') innerLevel++;
-                            else if (c === ')') innerLevel--;
-                            else if (c === ',' && innerLevel === 0) activeParameter++;
                         }
 
                         return {

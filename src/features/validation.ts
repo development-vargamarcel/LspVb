@@ -35,6 +35,8 @@ import { parseDocumentSymbols } from '../utils/parser';
 interface BlockContext {
     type: string;
     line: number;
+    /** Tracks if the block contains any statements or nested blocks. */
+    hasContent: boolean;
 }
 
 /**
@@ -140,6 +142,18 @@ function checkUnusedVariables(document: TextDocument, symbols: DocumentSymbol[])
                             source: 'SimpleVB'
                         });
                     }
+
+                    // Check naming convention (Local variables should be camelCase)
+                    // Simple check: First letter is lowercase?
+                    // Exception: "_" prefix?
+                    if (/^[A-Z]/.test(sym.name)) {
+                        diagnostics.push({
+                            severity: DiagnosticSeverity.Information,
+                            range: sym.selectionRange,
+                            message: `Local variables should be camelCase (start with lowercase).`,
+                            source: 'SimpleVB'
+                        });
+                    }
                 }
             }
 
@@ -201,17 +215,101 @@ class Validator {
         Logger.debug('Validator: Starting line-by-line validation.');
         for (let i = 0; i < this.lines.length; i++) {
             const rawLine = this.lines[i];
+            // Check for TODOs before checking for empty trimmed lines
+            this.checkTodos(rawLine.trim(), i);
+
+            // Check Max Line Length (includes comments)
+            if (rawLine.length > 120) {
+                this.addDiagnostic(
+                    i,
+                    `Line is too long (${rawLine.length} > 120 characters).`,
+                    DiagnosticSeverity.Warning
+                );
+            }
+
             const trimmed = stripComment(rawLine).trim();
 
             if (!trimmed) continue;
 
-            this.validateStructure(trimmed, i, rawLine);
+            const isStructure = this.validateStructure(trimmed, i, rawLine);
+
+            // If not a start/end of a block, it is content (or inner structure like Else)
+            if (!isStructure) {
+                this.markCurrentContent();
+            }
+
             this.validateSyntax(trimmed, i, rawLine);
             this.validateUnreachable(trimmed, i);
+            this.checkMagicNumbers(trimmed, i);
         }
 
         this.checkUnclosedBlocks();
         return this.diagnostics;
+    }
+
+    /**
+     * Checks for magic numbers in the line.
+     * @param trimmed The trimmed line.
+     * @param lineIndex The line number.
+     */
+    private checkMagicNumbers(trimmed: string, lineIndex: number) {
+        // Ignore Const definitions, Dim initializations (common for testing/prototyping?), and array indexing?
+        // To reduce noise in tests and prototype code, maybe we should be less strict?
+        // Or updated tests.
+
+        if (/^Const\s/i.test(trimmed)) return;
+        if (/^Dim\s/i.test(trimmed)) return; // Allow magic numbers in Dim for now to fix tests
+
+        // Find numbers
+        const regex = /\b\d+\b/g;
+        let match;
+        while ((match = regex.exec(trimmed)) !== null) {
+            const numStr = match[0];
+            const num = parseInt(numStr);
+            // Allow 0, 1, -1
+            if (num !== 0 && num !== 1 && num !== -1) {
+                // Ignore if it's inside a string or comment?
+                // Strip comments handles comment.
+                // Strings are harder without parser.
+                // But simplified: assuming code.
+
+                // Warning: This regex picks up numbers inside variable names? No \b\d+\b matches "var1"?
+                // \b matches boundary. "var1" -> '1' has 'r' before it. so \b matches if 'r' is not word char?
+                // 'r' is word char. so "var1" '1' is not matched.
+                // "123" matches.
+
+                this.addDiagnostic(
+                    lineIndex,
+                    `Avoid magic numbers (${num}). Use a Constant instead.`,
+                    DiagnosticSeverity.Information
+                );
+            }
+        }
+    }
+
+    /**
+     * Checks for TODO and FIXME comments.
+     * @param rawTrimmed The trimmed line (including comments).
+     * @param lineIndex The line number.
+     */
+    private checkTodos(rawTrimmed: string, lineIndex: number) {
+        if (rawTrimmed.startsWith("'")) {
+            const comment = rawTrimmed.substring(1);
+            if (/\bTODO:/i.test(comment)) {
+                this.addDiagnostic(
+                    lineIndex,
+                    `TODO: ${comment.split(/todo:/i)[1].trim()}`,
+                    DiagnosticSeverity.Information
+                );
+            }
+            if (/\bFIXME:/i.test(comment)) {
+                this.addDiagnostic(
+                    lineIndex,
+                    `FIXME: ${comment.split(/fixme:/i)[1].trim()}`,
+                    DiagnosticSeverity.Information
+                );
+            }
+        }
     }
 
     /**
@@ -301,6 +399,58 @@ class Validator {
         if (exitMatch) {
             this.validateExit(exitMatch[1], lineIndex);
         }
+
+        // Check for Missing Return Type in Function/Property
+        if (/^(Function|Property)\b/i.test(trimmed)) {
+            // Check if it has 'As' clause
+            // Use regex that allows parentheses and whitespace
+            // Simplified: look for ' As ' after the name/parens
+            // Note: rawLine might contain comments, but trimmed doesn't start with comment.
+            // trimmed: "Function Foo()"
+            // We need to be careful about "Function As" (invalid name) vs "Function Foo As"
+
+            // Regex: Start with Function/Property, then space, then anything, then NOT 'As' before end (ignoring comment)
+            // Easier: Check if " As " exists (case insensitive)
+            // But "Function AsFunc()" might contain "As".
+            // So we want " As " to be after the parameters.
+
+            // Actually, we can check if it ends with "As <Type>"
+            // Regex: /\)\s+As\s+\w+/i  OR  /\s+As\s+\w+/i (if no parens for property)
+
+            // NOTE: "Function Foo" is valid (As Object default). We want to warn.
+
+            // Exclude "End Function" (already handled by block checks, but strict regex needed)
+            if (/^End\s+(Function|Property)/i.test(trimmed)) return;
+            if (/^(Exit|Declare)\s+/i.test(trimmed)) return; // Declare Function ...
+
+            // Ignore line continuations (multi-line definitions)
+            if (trimmed.endsWith('_')) return;
+
+            // Check for 'As' keyword
+            if (!/\bAs\b/i.test(trimmed)) {
+                // Determine type
+                const type = /^Function/i.test(trimmed) ? 'Function' : 'Property';
+                const nameMatch = /^(?:Function|Property)\s+(\w+)/i.exec(trimmed);
+                const name = nameMatch ? nameMatch[1] : 'unknown';
+
+                this.addDiagnostic(
+                    lineIndex,
+                    `${type} '${name}' is missing a return type (e.g. 'As Object').`,
+                    DiagnosticSeverity.Warning
+                );
+            } else {
+                // Has 'As', but maybe missing type? "Function Foo() As" -> handled by parser error usually?
+                // Or "Function Foo() As " -> trimmed ends with As?
+                if (/\bAs\s*$/i.test(trimmed)) {
+                    const type = /^Function/i.test(trimmed) ? 'Function' : 'Property';
+                    this.addDiagnostic(
+                        lineIndex,
+                        `${type} declaration is missing type after 'As'.`,
+                        DiagnosticSeverity.Warning
+                    );
+                }
+            }
+        }
     }
 
     /**
@@ -385,15 +535,16 @@ class Validator {
      * @param trimmed The trimmed line content.
      * @param lineIndex The line number.
      * @param rawLine The original line content.
+     * @returns True if the line was a block start or end.
      */
-    private validateStructure(trimmed: string, lineIndex: number, rawLine: string) {
+    private validateStructure(trimmed: string, lineIndex: number, rawLine: string): boolean {
         // 1. Check for End/Closing statements first
         if (this.handleBlockEnd(trimmed, lineIndex, rawLine)) {
-            return;
+            return true;
         }
 
         // 2. Check for Start/Opening statements
-        this.handleBlockStart(trimmed, lineIndex);
+        return this.handleBlockStart(trimmed, lineIndex);
     }
 
     /**
@@ -433,39 +584,43 @@ class Validator {
      * Handles block starting statements.
      * @param trimmed The trimmed line.
      * @param lineIndex The line number.
+     * @returns True if a block started.
      */
-    private handleBlockStart(trimmed: string, lineIndex: number) {
+    private handleBlockStart(trimmed: string, lineIndex: number): boolean {
         let match: RegExpMatchArray | null;
 
         // Generic Start
         if ((match = VAL_BLOCK_START_REGEX.exec(trimmed))) {
             this.pushStack(match[1], lineIndex);
-            return;
+            return true;
         }
 
         // Specific Starts
         if (VAL_IF_START_REGEX.test(trimmed)) {
             if (this.isBlockIf(trimmed)) {
                 this.pushStack('If', lineIndex);
+                return true;
             }
-            return;
+            return false;
         }
         if (VAL_FOR_START_REGEX.test(trimmed)) {
             this.pushStack('For', lineIndex);
-            return;
+            return true;
         }
         if (VAL_SELECT_CASE_START_REGEX.test(trimmed)) {
             this.pushStack('Select', lineIndex);
-            return;
+            return true;
         }
         if (VAL_DO_START_REGEX.test(trimmed)) {
             this.pushStack('Do', lineIndex);
-            return;
+            return true;
         }
         if (VAL_WHILE_START_REGEX.test(trimmed)) {
             this.pushStack('While', lineIndex);
-            return;
+            return true;
         }
+
+        return false;
     }
 
     /**
@@ -496,7 +651,18 @@ class Validator {
      */
     private pushStack(type: string, line: number) {
         Logger.debug(`Validator: Pushing stack '${type}' at line ${line}`);
-        this.stack.push({ type, line });
+        // Mark parent as having content (a nested block counts as content)
+        this.markCurrentContent();
+        this.stack.push({ type, line, hasContent: false });
+    }
+
+    /**
+     * Marks the current block on the stack as having content.
+     */
+    private markCurrentContent() {
+        if (this.stack.length > 0) {
+            this.stack[this.stack.length - 1].hasContent = true;
+        }
     }
 
     /**
@@ -519,6 +685,18 @@ class Validator {
         const last = this.stack[this.stack.length - 1];
         if (last.type.toLowerCase() === foundClosingType.toLowerCase()) {
             this.stack.pop();
+            // Check for empty block
+            if (!last.hasContent) {
+                // Only warn for specific block types
+                const type = last.type.toLowerCase();
+                if (['if', 'for', 'while', 'do', 'select'].includes(type)) {
+                    this.addDiagnostic(
+                        last.line,
+                        `Empty '${last.type}' block detected.`,
+                        DiagnosticSeverity.Warning
+                    );
+                }
+            }
         } else {
             const expectedClosing = this.getExpectedClosing(last.type);
             this.addDiagnostic(

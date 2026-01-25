@@ -24,6 +24,12 @@ export const PARSER_DIM_REGEX = new RegExp(DIM_PATTERN, 'i');
 export const PARSER_CONST_REGEX = new RegExp(CONST_PATTERN, 'i');
 /** Regex for parsing fields (module-level variables). */
 export const PARSER_FIELD_REGEX = new RegExp(FIELD_PATTERN, 'i');
+/** Regex for parsing Imports statements. Group 1: Namespace */
+export const PARSER_IMPORTS_REGEX = /^\s*Imports\s+([\w.]+)/i;
+/** Regex for parsing Region start. Group 1: Name */
+export const PARSER_REGION_START_REGEX = /^\s*#Region\s+(.*)$/i;
+/** Regex for parsing Region end. */
+export const PARSER_REGION_END_REGEX = /^\s*#End\s+Region\b/i;
 
 // For Validation (Line by Line)
 

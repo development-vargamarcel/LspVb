@@ -7,6 +7,7 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { KEYWORDS } from '../keywords';
+import { BUILTINS } from '../builtins';
 import {
     parseDocumentSymbols,
     getVisibleSymbols,
@@ -293,6 +294,18 @@ export function onCompletion(
         }
     }
 
+    // Add Built-ins (Standard Library)
+    if (!isTypeContext) {
+        for (const key in BUILTINS) {
+            const val = BUILTINS[key];
+            items.push({
+                label: val.label,
+                kind: val.kind,
+                data: key
+            });
+        }
+    }
+
     // Add Symbols from Document
     // Use getVisibleSymbols to show only relevant symbols from current scope
     const visibleSymbols = getVisibleSymbols(symbols, params.position);
@@ -343,9 +356,14 @@ export function onCompletion(
  */
 export function onCompletionResolve(item: CompletionItem): CompletionItem {
     const data = item.data as string;
-    if (data && KEYWORDS[data]) {
-        item.detail = KEYWORDS[data].detail;
-        item.documentation = KEYWORDS[data].documentation;
+    if (data) {
+        if (KEYWORDS[data]) {
+            item.detail = KEYWORDS[data].detail;
+            item.documentation = KEYWORDS[data].documentation;
+        } else if (BUILTINS[data]) {
+            item.detail = BUILTINS[data].detail;
+            item.documentation = BUILTINS[data].documentation;
+        }
     }
     return item;
 }
