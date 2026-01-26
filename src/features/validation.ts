@@ -28,7 +28,33 @@ import {
 } from '../utils/regexes';
 import { stripComment } from '../utils/textUtils';
 import { Logger } from '../utils/logger';
-import { parseDocumentSymbols, findSymbolInScope } from '../utils/parser';
+import { parseDocumentSymbols, findSymbolInScope, findGlobalSymbol } from '../utils/parser';
+
+/**
+ * List of built-in VB types to ignore during validation.
+ */
+const BUILTIN_TYPES = new Set([
+    'boolean',
+    'byte',
+    'char',
+    'date',
+    'decimal',
+    'double',
+    'integer',
+    'long',
+    'object',
+    'sbyte',
+    'short',
+    'single',
+    'string',
+    'uinteger',
+    'ulong',
+    'ushort',
+    'variant',
+    'void',
+    'int',
+    'bool'
+]);
 
 /**
  * Represents a code block context on the stack.
@@ -55,7 +81,7 @@ export function validateTextDocument(
     // Check for duplicate declarations using parsed symbols
     const symbols = parseDocumentSymbols(textDocument);
 
-    const validator = new Validator(textDocument, symbols);
+    const validator = new Validator(textDocument, symbols, allDocuments);
     const diagnostics = validator.validate();
 
     const duplicateDiagnostics = checkDuplicates(symbols);
@@ -269,12 +295,15 @@ class Validator {
     private stack: BlockContext[] = [];
     private lines: string[];
     private isUnreachable = false;
+    private allDocuments: TextDocument[] = [];
 
     constructor(
         private document: TextDocument,
-        private symbols: DocumentSymbol[]
+        private symbols: DocumentSymbol[],
+        allDocuments: TextDocument[] = []
     ) {
         this.lines = document.getText().split(/\r?\n/);
+        this.allDocuments = allDocuments;
     }
 
     /**
@@ -312,10 +341,98 @@ class Validator {
             this.validateUnreachable(trimmed, i);
             this.checkMagicNumbers(trimmed, i);
             this.checkConstAssignment(trimmed, i, rawLine);
+            this.checkUnknownTypes(trimmed, i, rawLine);
         }
 
         this.checkUnclosedBlocks();
         return this.diagnostics;
+    }
+
+    /**
+     * Checks for unknown types in declarations (Dim, Const, Function, Property, Field).
+     * @param trimmed The trimmed line.
+     * @param lineIndex The line number.
+     * @param rawLine The original line.
+     */
+    private checkUnknownTypes(trimmed: string, lineIndex: number, rawLine: string) {
+        // Regex to match "As Type"
+        // Need to handle "Dim x As Type", "Function f() As Type", "Property p As Type"
+        // Also arrays "As Type()" or generics "As List(Of T)" (simple check for base type)
+
+        // Skip comments? trimmed is stripped of comments.
+
+        // Regex: \bAs\s+(\w+)(?:\(.*\))?
+        // But we must be careful not to match strings or something else.
+        // Assuming code context.
+
+        const matches = Array.from(trimmed.matchAll(/\bAs\s+(\w+)/gi));
+
+        for (const match of matches) {
+            const typeName = match[1];
+
+            // 1. Check built-ins
+            if (BUILTIN_TYPES.has(typeName.toLowerCase())) continue;
+
+            // 2. Check if type exists in scope (Classes, Enums, Interfaces, Structs)
+            // We need a position to check scope.
+            // Using the start of the line (0) usually works for "Imports" visibility,
+            // but for nested classes, we might need accurate position.
+            // Let's use the position of the "As" keyword.
+            const asIndex = rawLine.toLowerCase().indexOf('as ' + typeName.toLowerCase());
+            // If not found (case mismatch issue?), default to 0.
+            const col = asIndex !== -1 ? asIndex : 0;
+
+            const position = { line: lineIndex, character: col };
+
+            // Look for symbol in current doc
+            const symbol = findSymbolInScope(this.symbols, typeName, position);
+
+            if (symbol) {
+                // Verify it is a Type (Class, Struct, Interface, Enum, Module?)
+                // Modules can't be types usually? Actually in VB, standard modules are not types.
+                // But we'll allow Class, Interface, Enum, Struct.
+                if (
+                    symbol.kind === SymbolKind.Class ||
+                    symbol.kind === SymbolKind.Interface ||
+                    symbol.kind === SymbolKind.Enum ||
+                    symbol.kind === SymbolKind.Struct
+                ) {
+                    continue;
+                }
+            }
+
+            // 3. Check Global Symbols in other docs
+            // This is expensive? Only if not found locally.
+            let foundGlobal = false;
+            for (const doc of this.allDocuments) {
+                if (doc.uri === this.document.uri) continue;
+                // parseDocumentSymbols is cached or fast enough?
+                // We should cache this in a real server, but here we re-parse.
+                // To avoid perf hit, maybe only check if allDocuments is small?
+                const globalSyms = parseDocumentSymbols(doc);
+                const global = findGlobalSymbol(globalSyms, typeName);
+                if (global) {
+                    foundGlobal = true;
+                    break;
+                }
+            }
+
+            if (foundGlobal) continue;
+
+            // 4. Report error
+            // Find range of type name
+            // const startIndex = match.index! + match[0].lastIndexOf(typeName);
+            // This index is relative to trimmed string.
+            // We need relative to rawLine.
+            // Be careful if multiple "As" on same line?
+
+            // Simple fallback: if type is unknown, just report it.
+            this.addDiagnostic(
+                lineIndex,
+                `Type '${typeName}' is not defined.`,
+                DiagnosticSeverity.Warning // Warning for now, as we might miss imports or system libs
+            );
+        }
     }
 
     /**
