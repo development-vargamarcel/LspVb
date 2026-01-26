@@ -358,66 +358,85 @@ class Validator {
         // Regex to match "As Type"
         // Need to handle "Dim x As Type", "Function f() As Type", "Property p As Type"
         // Also arrays "As Type()" or generics "As List(Of T)" (simple check for base type)
+        // Also qualified names "As System.String"
 
         // Skip comments? trimmed is stripped of comments.
 
-        // Regex: \bAs\s+(\w+)(?:\(.*\))?
-        // But we must be careful not to match strings or something else.
-        // Assuming code context.
+        // Regex: \bAs\s+([\w.]+)(?:\(.*\))?
+        // Matches "As Word", "As A.B", but stops at parens or whitespace.
 
-        const matches = Array.from(trimmed.matchAll(/\bAs\s+(\w+)/gi));
+        const matches = Array.from(trimmed.matchAll(/\bAs\s+([\w.]+)/gi));
 
         for (const match of matches) {
             const typeName = match[1];
+
+            // If typeName ends with dot (regex greediness?), trim it.
+            // \w includes alphanumeric and _. dot is literal.
+            // If code is "As MyClass." (incomplete), we ignore.
+            if (typeName.endsWith('.')) continue;
 
             // 1. Check built-ins
             if (BUILTIN_TYPES.has(typeName.toLowerCase())) continue;
 
             // 2. Check if type exists in scope (Classes, Enums, Interfaces, Structs)
-            // We need a position to check scope.
-            // Using the start of the line (0) usually works for "Imports" visibility,
-            // but for nested classes, we might need accurate position.
-            // Let's use the position of the "As" keyword.
-            const asIndex = rawLine.toLowerCase().indexOf('as ' + typeName.toLowerCase());
-            // If not found (case mismatch issue?), default to 0.
-            const col = asIndex !== -1 ? asIndex : 0;
+            // Handle Qualified Names (e.g., MyLib.MyClass)
+            const parts = typeName.split('.');
+            const firstPart = parts[0];
 
+            // Determine position for scope check
+            const asIndex = rawLine.toLowerCase().indexOf('as ' + typeName.toLowerCase());
+            const col = asIndex !== -1 ? asIndex : 0;
             const position = { line: lineIndex, character: col };
 
-            // Look for symbol in current doc
-            const symbol = findSymbolInScope(this.symbols, typeName, position);
+            // Resolve the first part
+            let currentSymbol = findSymbolInScope(this.symbols, firstPart, position);
 
-            if (symbol) {
-                // Verify it is a Type (Class, Struct, Interface, Enum, Module?)
-                // Modules can't be types usually? Actually in VB, standard modules are not types.
-                // But we'll allow Class, Interface, Enum, Struct.
-                if (
-                    symbol.kind === SymbolKind.Class ||
-                    symbol.kind === SymbolKind.Interface ||
-                    symbol.kind === SymbolKind.Enum ||
-                    symbol.kind === SymbolKind.Struct
-                ) {
-                    continue;
+            // If not found locally, check globals (other docs)
+            if (!currentSymbol) {
+                for (const doc of this.allDocuments) {
+                    if (doc.uri === this.document.uri) continue;
+                    const globalSyms = parseDocumentSymbols(doc);
+                    currentSymbol = findGlobalSymbol(globalSyms, firstPart);
+                    if (currentSymbol) break;
                 }
             }
 
-            // 3. Check Global Symbols in other docs
-            // This is expensive? Only if not found locally.
-            let foundGlobal = false;
-            for (const doc of this.allDocuments) {
-                if (doc.uri === this.document.uri) continue;
-                // parseDocumentSymbols is cached or fast enough?
-                // We should cache this in a real server, but here we re-parse.
-                // To avoid perf hit, maybe only check if allDocuments is small?
-                const globalSyms = parseDocumentSymbols(doc);
-                const global = findGlobalSymbol(globalSyms, typeName);
-                if (global) {
-                    foundGlobal = true;
-                    break;
+            // If still not found, then it's an error (unless it's a built-in like System which we might miss)
+            // But if we found the first part, we traverse the rest.
+
+            if (currentSymbol) {
+                let valid = true;
+                // Traverse remaining parts
+                for (let i = 1; i < parts.length; i++) {
+                    const nextPart = parts[i];
+                    if (currentSymbol && currentSymbol.children) {
+                        const child: DocumentSymbol | undefined = currentSymbol.children.find(c => c.name.toLowerCase() === nextPart.toLowerCase());
+                        if (child) {
+                            currentSymbol = child;
+                        } else {
+                            valid = false;
+                            break;
+                        }
+                    } else {
+                        valid = false;
+                        break;
+                    }
+                }
+
+                if (valid && currentSymbol) {
+                     // Check if the final symbol is a valid type or namespace
+                    if (
+                        currentSymbol.kind === SymbolKind.Class ||
+                        currentSymbol.kind === SymbolKind.Interface ||
+                        currentSymbol.kind === SymbolKind.Enum ||
+                        currentSymbol.kind === SymbolKind.Struct ||
+                        currentSymbol.kind === SymbolKind.Namespace ||
+                        currentSymbol.kind === SymbolKind.Module // Modules can sometimes be used as type containers or types
+                    ) {
+                        continue;
+                    }
                 }
             }
-
-            if (foundGlobal) continue;
 
             // 4. Report error
             // Find range of type name

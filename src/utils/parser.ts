@@ -163,6 +163,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             else if (/Structure/i.test(type)) kind = SymbolKind.Struct;
             else if (/Interface/i.test(type)) kind = SymbolKind.Interface;
             else if (/Enum/i.test(type)) kind = SymbolKind.Enum;
+            else if (/Namespace/i.test(type)) kind = SymbolKind.Namespace;
 
             const symbol: DocumentSymbol = {
                 name: name,

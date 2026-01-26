@@ -57,4 +57,32 @@ Dim x As GlobalClass
         const typeWarnings = diagnostics.filter(d => d.message.includes('not defined'));
         expect(typeWarnings).to.be.empty;
     });
+
+    it('should warn on unknown type with dot notation', () => {
+        const text = `
+Dim x As MyLib.UnknownType
+        `;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+        const diagnostics = validateTextDocument(document);
+
+        const typeWarnings = diagnostics.filter(d => d.message.includes('not defined'));
+        expect(typeWarnings).to.have.lengthOf(1);
+        expect(typeWarnings[0].message).to.contain('MyLib.UnknownType');
+    });
+
+    it('should NOT warn on valid qualified type', () => {
+        const text = `
+Namespace MyLib
+    Class MyClass
+    End Class
+End Namespace
+
+Dim x As MyLib.MyClass
+        `;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+        const diagnostics = validateTextDocument(document);
+
+        const typeWarnings = diagnostics.filter(d => d.message.includes('not defined'));
+        expect(typeWarnings).to.be.empty;
+    });
 });
