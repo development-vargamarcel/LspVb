@@ -9,14 +9,14 @@ export const MODIFIER_PATTERN = '(?:Public|Private|Friend|Protected)';
 // Patterns
 // Updated BLOCK_START_PATTERN to optionally capture arguments in parens.
 // Groups: 1=Modifier, 2=Type, 3=Name, 4=Args
-const BLOCK_START_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Property|Structure|Interface|Enum)\\s+(\\w+)(?:\\s*\\(([^)]*)\\))?`;
+const BLOCK_START_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Namespace)\\s+(\\w+)(?:\\s*\\(([^)]*)\\))?`;
 const DIM_PATTERN = `^\\s*Dim\\s+(\\w+)(?:\\s+As\\s+(\\w+))?`;
 const CONST_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)?Const\\s+(\\w+)(?:\\s+As\\s+(\\w+))?`;
 const FIELD_PATTERN = `^\\s*(${MODIFIER_PATTERN})\\s+(\\w+)(?:\\s+As\\s+(\\w+))?`;
 
 // For Parser (Global + Multiline + Case Insensitive)
 
-/** Regex for parsing block starts (Sub, Function, Class, Module, Property, Structure, Interface, Enum). */
+/** Regex for parsing block starts (Sub, Function, Class, Module, Property, Structure, Interface, Enum, Namespace). */
 export const PARSER_BLOCK_REGEX = new RegExp(BLOCK_START_PATTERN, 'i');
 /** Regex for parsing Dim statements. */
 export const PARSER_DIM_REGEX = new RegExp(DIM_PATTERN, 'i');
@@ -30,12 +30,14 @@ export const PARSER_IMPORTS_REGEX = /^\s*Imports\s+([\w.]+)/i;
 export const PARSER_REGION_START_REGEX = /^\s*#Region\s+(.*)$/i;
 /** Regex for parsing Region end. */
 export const PARSER_REGION_END_REGEX = /^\s*#End\s+Region\b/i;
+/** Regex for parsing Implements statements. Group 1: Interface Name */
+export const PARSER_IMPLEMENTS_REGEX = /^\s*Implements\s+([\w.]+)/i;
 
 // For Validation (Line by Line)
 
 /** Regex for validating the start of a block. */
 export const VAL_BLOCK_START_REGEX = new RegExp(
-    `^\\s*(?:(?:${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Property|Structure|Interface|Enum)\\b`,
+    `^\\s*(?:(?:${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Namespace)\\b`,
     'i'
 );
 /** Regex for validating the start of an If statement. */
@@ -51,7 +53,7 @@ export const VAL_WHILE_START_REGEX = /^\s*While\b/i;
 
 /** Regex for validating the end of a block (End Sub, End If, etc.). */
 export const VAL_BLOCK_END_REGEX =
-    /^\s*End\s+(Sub|Function|Class|Module|Property|If|Select|Structure|Interface|Enum)\b/i;
+    /^\s*End\s+(Sub|Function|Class|Module|Property|If|Select|Structure|Interface|Enum|Namespace)\b/i;
 /** Regex for validating Next statement. */
 export const VAL_NEXT_REGEX = /^\s*Next\b/i;
 /** Regex for validating Loop statement. */
@@ -72,6 +74,8 @@ export const VAL_RETURN_REGEX = /^\s*Return\b/i;
 export const VAL_EXIT_REGEX = /^\s*Exit\s+(Sub|Function|Property|Do|For|Select|While)\b/i;
 /** Regex for detecting Throw statements. */
 export const VAL_THROW_REGEX = /^\s*Throw\b/i;
+/** Regex for detecting variable assignment (e.g. x = 1). Group 1: Variable Name */
+export const VAL_ASSIGNMENT_REGEX = /^\s*(\w+)\s*=/i;
 
 /** Regex for identifying an If statement line. */
 export const VAL_IF_LINE_REGEX = /^\s*If\s+.*$/i;

@@ -18,6 +18,7 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.) and comment blocks.
 - **Formatting**: Auto-formatting support for indentation of blocks and nested structures.
 - **Go to Definition**: Jump to the definition of a symbol. Supports finding definitions across multiple open files.
+- **Go to Implementation**: Jump to the implementation of an Interface or Class. Supports finding implementations across multiple open files.
 - **Go to Type Definition**: Jump to the definition of a variable's type.
 - **Find References**: Find all occurrences of a symbol. Supports searching across all open files.
 - **Rename**: Rename a symbol and all its occurrences. Supports renaming across all open files.

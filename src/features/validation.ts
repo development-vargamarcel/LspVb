@@ -23,11 +23,38 @@ import {
     VAL_THEN_REGEX,
     VAL_RETURN_REGEX,
     VAL_EXIT_REGEX,
-    VAL_THROW_REGEX
+    VAL_THROW_REGEX,
+    VAL_ASSIGNMENT_REGEX
 } from '../utils/regexes';
 import { stripComment } from '../utils/textUtils';
 import { Logger } from '../utils/logger';
-import { parseDocumentSymbols } from '../utils/parser';
+import { parseDocumentSymbols, findSymbolInScope, findGlobalSymbol } from '../utils/parser';
+
+/**
+ * List of built-in VB types to ignore during validation.
+ */
+const BUILTIN_TYPES = new Set([
+    'boolean',
+    'byte',
+    'char',
+    'date',
+    'decimal',
+    'double',
+    'integer',
+    'long',
+    'object',
+    'sbyte',
+    'short',
+    'single',
+    'string',
+    'uinteger',
+    'ulong',
+    'ushort',
+    'variant',
+    'void',
+    'int',
+    'bool'
+]);
 
 /**
  * Represents a code block context on the stack.
@@ -51,11 +78,12 @@ export function validateTextDocument(
     allDocuments: TextDocument[] = [textDocument]
 ): Diagnostic[] {
     Logger.log(`Starting validation for ${textDocument.uri}`);
-    const validator = new Validator(textDocument);
-    const diagnostics = validator.validate();
-
     // Check for duplicate declarations using parsed symbols
     const symbols = parseDocumentSymbols(textDocument);
+
+    const validator = new Validator(textDocument, symbols, allDocuments);
+    const diagnostics = validator.validate();
+
     const duplicateDiagnostics = checkDuplicates(symbols);
     diagnostics.push(...duplicateDiagnostics);
 
@@ -267,9 +295,15 @@ class Validator {
     private stack: BlockContext[] = [];
     private lines: string[];
     private isUnreachable = false;
+    private allDocuments: TextDocument[] = [];
 
-    constructor(private document: TextDocument) {
+    constructor(
+        private document: TextDocument,
+        private symbols: DocumentSymbol[],
+        allDocuments: TextDocument[] = []
+    ) {
         this.lines = document.getText().split(/\r?\n/);
+        this.allDocuments = allDocuments;
     }
 
     /**
@@ -306,10 +340,153 @@ class Validator {
             this.validateSyntax(trimmed, i, rawLine);
             this.validateUnreachable(trimmed, i);
             this.checkMagicNumbers(trimmed, i);
+            this.checkConstAssignment(trimmed, i, rawLine);
+            this.checkUnknownTypes(trimmed, i, rawLine);
         }
 
         this.checkUnclosedBlocks();
         return this.diagnostics;
+    }
+
+    /**
+     * Checks for unknown types in declarations (Dim, Const, Function, Property, Field).
+     * @param trimmed The trimmed line.
+     * @param lineIndex The line number.
+     * @param rawLine The original line.
+     */
+    private checkUnknownTypes(trimmed: string, lineIndex: number, rawLine: string) {
+        // Regex to match "As Type"
+        // Need to handle "Dim x As Type", "Function f() As Type", "Property p As Type"
+        // Also arrays "As Type()" or generics "As List(Of T)" (simple check for base type)
+        // Also qualified names "As System.String"
+
+        // Skip comments? trimmed is stripped of comments.
+
+        // Regex: \bAs\s+([\w.]+)(?:\(.*\))?
+        // Matches "As Word", "As A.B", but stops at parens or whitespace.
+
+        const matches = Array.from(trimmed.matchAll(/\bAs\s+([\w.]+)/gi));
+
+        for (const match of matches) {
+            const typeName = match[1];
+
+            // If typeName ends with dot (regex greediness?), trim it.
+            // \w includes alphanumeric and _. dot is literal.
+            // If code is "As MyClass." (incomplete), we ignore.
+            if (typeName.endsWith('.')) continue;
+
+            // 1. Check built-ins
+            if (BUILTIN_TYPES.has(typeName.toLowerCase())) continue;
+
+            // 2. Check if type exists in scope (Classes, Enums, Interfaces, Structs)
+            // Handle Qualified Names (e.g., MyLib.MyClass)
+            const parts = typeName.split('.');
+            const firstPart = parts[0];
+
+            // Determine position for scope check
+            const asIndex = rawLine.toLowerCase().indexOf('as ' + typeName.toLowerCase());
+            const col = asIndex !== -1 ? asIndex : 0;
+            const position = { line: lineIndex, character: col };
+
+            // Resolve the first part
+            let currentSymbol = findSymbolInScope(this.symbols, firstPart, position);
+
+            // If not found locally, check globals (other docs)
+            if (!currentSymbol) {
+                for (const doc of this.allDocuments) {
+                    if (doc.uri === this.document.uri) continue;
+                    const globalSyms = parseDocumentSymbols(doc);
+                    currentSymbol = findGlobalSymbol(globalSyms, firstPart);
+                    if (currentSymbol) break;
+                }
+            }
+
+            // If still not found, then it's an error (unless it's a built-in like System which we might miss)
+            // But if we found the first part, we traverse the rest.
+
+            if (currentSymbol) {
+                let valid = true;
+                // Traverse remaining parts
+                for (let i = 1; i < parts.length; i++) {
+                    const nextPart = parts[i];
+                    if (currentSymbol && currentSymbol.children) {
+                        const child: DocumentSymbol | undefined = currentSymbol.children.find(c => c.name.toLowerCase() === nextPart.toLowerCase());
+                        if (child) {
+                            currentSymbol = child;
+                        } else {
+                            valid = false;
+                            break;
+                        }
+                    } else {
+                        valid = false;
+                        break;
+                    }
+                }
+
+                if (valid && currentSymbol) {
+                     // Check if the final symbol is a valid type or namespace
+                    if (
+                        currentSymbol.kind === SymbolKind.Class ||
+                        currentSymbol.kind === SymbolKind.Interface ||
+                        currentSymbol.kind === SymbolKind.Enum ||
+                        currentSymbol.kind === SymbolKind.Struct ||
+                        currentSymbol.kind === SymbolKind.Namespace ||
+                        currentSymbol.kind === SymbolKind.Module // Modules can sometimes be used as type containers or types
+                    ) {
+                        continue;
+                    }
+                }
+            }
+
+            // 4. Report error
+            // Find range of type name
+            // const startIndex = match.index! + match[0].lastIndexOf(typeName);
+            // This index is relative to trimmed string.
+            // We need relative to rawLine.
+            // Be careful if multiple "As" on same line?
+
+            // Simple fallback: if type is unknown, just report it.
+            this.addDiagnostic(
+                lineIndex,
+                `Type '${typeName}' is not defined.`,
+                DiagnosticSeverity.Warning // Warning for now, as we might miss imports or system libs
+            );
+        }
+    }
+
+    /**
+     * Checks if a constant is being assigned a value.
+     * @param trimmed The trimmed line.
+     * @param lineIndex The line number.
+     * @param rawLine The original line.
+     */
+    private checkConstAssignment(trimmed: string, lineIndex: number, rawLine: string) {
+        // Check for assignment: x = 1
+        const match = VAL_ASSIGNMENT_REGEX.exec(trimmed);
+        if (match) {
+            // Ignore Dim x = ...
+            if (/^Dim\s/i.test(trimmed)) return;
+            // Ignore Const x = ... (declaration)
+            if (/^Const\s/i.test(trimmed)) return;
+
+            const varName = match[1];
+
+            // Find the symbol definition
+            // We need the position of the variable usage
+            const col = rawLine.indexOf(varName);
+            // findSymbolInScope expects position of usage
+            const position = { line: lineIndex, character: col };
+
+            const symbol = findSymbolInScope(this.symbols, varName, position);
+
+            if (symbol && symbol.kind === SymbolKind.Constant) {
+                this.addDiagnostic(
+                    lineIndex,
+                    `Cannot assign to constant '${varName}'.`,
+                    DiagnosticSeverity.Error
+                );
+            }
+        }
     }
 
     /**

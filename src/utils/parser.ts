@@ -7,6 +7,7 @@ import {
     PARSER_CONST_REGEX,
     PARSER_FIELD_REGEX,
     PARSER_IMPORTS_REGEX,
+    PARSER_IMPLEMENTS_REGEX,
     PARSER_REGION_START_REGEX,
     PARSER_REGION_END_REGEX,
     VAL_BLOCK_END_REGEX,
@@ -162,6 +163,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             else if (/Structure/i.test(type)) kind = SymbolKind.Struct;
             else if (/Interface/i.test(type)) kind = SymbolKind.Interface;
             else if (/Enum/i.test(type)) kind = SymbolKind.Enum;
+            else if (/Namespace/i.test(type)) kind = SymbolKind.Namespace;
 
             const symbol: DocumentSymbol = {
                 name: name,
@@ -349,7 +351,29 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             continue;
         }
 
-        // 7. Check for Regions
+        // 7. Check for Implements
+        const implementsMatch = PARSER_IMPLEMENTS_REGEX.exec(trimmed);
+        if (implementsMatch) {
+            const name = implementsMatch[1];
+            const symbol: DocumentSymbol = {
+                name: name,
+                kind: SymbolKind.Interface,
+                detail: `Implements ${name}`,
+                range: {
+                    start: { line: i, character: 0 },
+                    end: { line: i, character: rawLine.length }
+                },
+                selectionRange: {
+                    start: { line: i, character: rawLine.indexOf(name) },
+                    end: { line: i, character: rawLine.indexOf(name) + name.length }
+                },
+                children: []
+            };
+            addSymbol(symbol);
+            continue;
+        }
+
+        // 8. Check for Regions
         const regionMatch = PARSER_REGION_START_REGEX.exec(trimmed);
         if (regionMatch) {
             const name = regionMatch[1].trim(); // Can be string literal
@@ -373,7 +397,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             continue;
         }
 
-        // 8. Check for inner blocks (If, For, Select, Do, While)
+        // 9. Check for inner blocks (If, For, Select, Do, While)
         let innerBlockName = '';
         if (VAL_IF_START_REGEX.test(trimmed)) {
             // Check if it's a block If
