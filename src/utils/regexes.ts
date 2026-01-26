@@ -118,3 +118,5 @@ export const FOLD_WHILE_START_REGEX = /^\s*While\b/i;
 export const FOLD_DO_START_REGEX = /^\s*Do\b/i;
 /** Regex for identifying Select Case starts for folding. */
 export const FOLD_SELECT_START_REGEX = /^\s*Select\s+Case\b/i;
+/** Regex for identifying Imports statements for folding. */
+export const FOLD_IMPORTS_REGEX = /^\s*Imports\b/i;

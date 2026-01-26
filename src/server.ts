@@ -83,7 +83,7 @@ Logger.setConnection(connection);
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 // Validation Scheduler
-const validationScheduler = new ValidationScheduler(connection);
+const validationScheduler = new ValidationScheduler(connection, documents);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;

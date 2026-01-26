@@ -13,13 +13,14 @@ import {
     FOLD_DO_START_REGEX,
     FOLD_SELECT_START_REGEX,
     FOLD_REGION_START_REGEX,
-    FOLD_REGION_END_REGEX
+    FOLD_REGION_END_REGEX,
+    FOLD_IMPORTS_REGEX
 } from '../utils/regexes';
 import { stripComment } from '../utils/textUtils';
 
 /**
  * Handles folding range requests.
- * Identifies collapsible blocks (Sub, Function, If, For, etc.) in the document.
+ * Identifies collapsible blocks (Sub, Function, If, For, etc.) and Imports sections.
  *
  * @param params The folding range parameters.
  * @param document The text document.
@@ -38,6 +39,7 @@ export function onFoldingRanges(
     const stack: { line: number; type: string }[] = [];
 
     let commentBlockStart = -1;
+    let importsBlockStart = -1;
 
     for (let i = 0; i < lines.length; i++) {
         const rawLine = lines[i];
@@ -61,6 +63,28 @@ export function onFoldingRanges(
                     });
                 }
                 commentBlockStart = -1;
+            }
+        }
+
+        // 2. Imports Folding Logic
+        // Check if line is an Imports statement
+        if (FOLD_IMPORTS_REGEX.test(trimmedRaw)) {
+            if (importsBlockStart === -1) {
+                importsBlockStart = i;
+            }
+        } else {
+            if (importsBlockStart !== -1) {
+                // End of imports block
+                const importsBlockEnd = i - 1;
+                // Only fold if >= 2 lines
+                if (importsBlockEnd > importsBlockStart) {
+                    ranges.push({
+                        startLine: importsBlockStart,
+                        endLine: importsBlockEnd,
+                        kind: 'imports'
+                    });
+                }
+                importsBlockStart = -1;
             }
         }
 
@@ -127,6 +151,18 @@ export function onFoldingRanges(
                 startLine: commentBlockStart,
                 endLine: commentBlockEnd,
                 kind: 'comment'
+            });
+        }
+    }
+
+    // Close any remaining imports block at EOF
+    if (importsBlockStart !== -1) {
+        const importsBlockEnd = lines.length - 1;
+        if (importsBlockEnd > importsBlockStart) {
+            ranges.push({
+                startLine: importsBlockStart,
+                endLine: importsBlockEnd,
+                kind: 'imports'
             });
         }
     }
