@@ -166,7 +166,7 @@ connection.onHover(
         const document = documents.get(params.textDocument.uri);
         if (!document) return null;
         Logger.log(`Hover requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
-        return onHover(params, document);
+        return onHover(params, document, documents.all());
     }, null, 'Hover')
 );
 
@@ -256,7 +256,7 @@ connection.onSignatureHelp(
         const document = documents.get(params.textDocument.uri);
         if (!document) return null;
         Logger.log(`Signature Help requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
-        return onSignatureHelp(params, document);
+        return onSignatureHelp(params, document, documents.all());
     }, null, 'SignatureHelp')
 );
 

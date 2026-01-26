@@ -5,7 +5,7 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
-import { parseDocumentSymbols, findSymbolInScope } from '../utils/parser';
+import { parseDocumentSymbols, findSymbolInScope, findGlobalSymbol } from '../utils/parser';
 import { BUILTINS } from '../builtins';
 
 /**
@@ -14,11 +14,13 @@ import { BUILTINS } from '../builtins';
  *
  * @param params The signature help parameters.
  * @param document The text document.
+ * @param allDocuments Optional list of all open documents.
  * @returns A SignatureHelp object or null.
  */
 export function onSignatureHelp(
     params: SignatureHelpParams,
-    document: TextDocument
+    document: TextDocument,
+    allDocuments: TextDocument[] = [document]
 ): SignatureHelp | null {
     Logger.log(`Signature help requested at ${params.position.line}:${params.position.character}`);
     const text = document.getText();
@@ -88,11 +90,24 @@ export function onSignatureHelp(
 
                     // 2. Check User Symbols
                     const symbols = parseDocumentSymbols(document);
-                    const symbol = findSymbolInScope(
+                    let symbol = findSymbolInScope(
                         symbols,
                         functionName.toLowerCase(),
                         params.position
                     );
+
+                    // 3. Check Global Symbols (Other Documents)
+                    if (!symbol && allDocuments.length > 0) {
+                        for (const doc of allDocuments) {
+                            if (doc.uri === document.uri) continue;
+                            const docSymbols = parseDocumentSymbols(doc);
+                            const found = findGlobalSymbol(docSymbols, functionName.toLowerCase());
+                            if (found) {
+                                symbol = found;
+                                break;
+                            }
+                        }
+                    }
 
                     if (
                         symbol &&
