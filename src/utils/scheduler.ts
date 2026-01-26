@@ -1,5 +1,5 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { Connection } from 'vscode-languageserver/node';
+import { Connection, TextDocuments } from 'vscode-languageserver/node';
 import { validateTextDocument } from '../features/validation';
 import { Logger } from './logger';
 
@@ -10,9 +10,11 @@ import { Logger } from './logger';
 export class ValidationScheduler {
     private validationTimers: Map<string, NodeJS.Timeout> = new Map();
     private connection: Connection;
+    private documents: TextDocuments<TextDocument>;
 
-    constructor(connection: Connection) {
+    constructor(connection: Connection, documents: TextDocuments<TextDocument>) {
         this.connection = connection;
+        this.documents = documents;
     }
 
     /**
@@ -30,7 +32,7 @@ export class ValidationScheduler {
         const timer = setTimeout(() => {
             try {
                 Logger.debug(`Scheduler: Running validation for ${uri}`);
-                const diagnostics = validateTextDocument(document);
+                const diagnostics = validateTextDocument(document, this.documents.all());
                 this.connection.sendDiagnostics({ uri: document.uri, diagnostics });
             } catch (error) {
                 Logger.error(`Validation failed: ${error}`);

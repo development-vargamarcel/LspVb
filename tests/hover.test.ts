@@ -50,4 +50,22 @@ describe('Hover Feature', () => {
         const result = onHover(params2, doc2);
         expect(result).to.be.null;
     });
+
+    it('should provide hover for symbols in other documents', () => {
+        const text1 = 'Class GlobalClass\nEnd Class';
+        const text2 = 'Dim x As GlobalClass';
+        const doc1 = TextDocument.create('file:///file1.vb', 'vb', 1, text1);
+        const doc2 = TextDocument.create('file:///file2.vb', 'vb', 1, text2);
+
+        const params: HoverParams = {
+            textDocument: { uri: 'file:///file2.vb' },
+            position: { line: 0, character: 12 } // 'GlobalClass'
+        };
+
+        const result = onHover(params, doc2, [doc1, doc2]);
+        expect(result).to.exist;
+        const contents = result?.contents as MarkupContent;
+        expect(contents.value).to.contain('GlobalClass');
+        expect(contents.value).to.contain('Class');
+    });
 });

@@ -107,4 +107,33 @@ End Class
             expect(defLine).to.equal(5);
         });
     });
+
+    it('should find definition in another document', () => {
+        const text1 = `
+Public Class GlobalClass
+End Class
+        `;
+        const text2 = `
+Sub Main()
+    Dim x As GlobalClass
+End Sub
+        `;
+        const doc1 = TextDocument.create('file:///file1.vb', 'vb', 1, text1);
+        const doc2 = TextDocument.create('file:///file2.vb', 'vb', 1, text2);
+
+        // Find definition of GlobalClass in doc2
+        const params: DefinitionParams = {
+            textDocument: { uri: 'file:///file2.vb' },
+            position: { line: 2, character: 15 } // Dim x As GlobalClass
+        };
+
+        const result = onDefinition(params, doc2, [doc1, doc2]);
+
+        expect(result).to.exist;
+        if (result && !Array.isArray(result)) {
+            // Location
+            expect(result.uri).to.equal('file:///file1.vb');
+            expect(result.range.start.line).to.equal(1);
+        }
+    });
 });

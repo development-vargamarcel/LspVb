@@ -43,9 +43,13 @@ interface BlockContext {
  * Validates a text document for syntax and structure errors.
  *
  * @param textDocument The document to validate.
+ * @param allDocuments Optional list of all open documents for cross-file checks.
  * @returns An array of diagnostics to be sent to the client.
  */
-export function validateTextDocument(textDocument: TextDocument): Diagnostic[] {
+export function validateTextDocument(
+    textDocument: TextDocument,
+    allDocuments: TextDocument[] = [textDocument]
+): Diagnostic[] {
     Logger.log(`Starting validation for ${textDocument.uri}`);
     const validator = new Validator(textDocument);
     const diagnostics = validator.validate();
@@ -55,6 +59,12 @@ export function validateTextDocument(textDocument: TextDocument): Diagnostic[] {
     const duplicateDiagnostics = checkDuplicates(symbols);
     diagnostics.push(...duplicateDiagnostics);
 
+    // Check for duplicate declarations across files
+    if (allDocuments.length > 1) {
+        const crossFileDiagnostics = checkCrossFileDuplicates(textDocument, symbols, allDocuments);
+        diagnostics.push(...crossFileDiagnostics);
+    }
+
     // Check for unused variables
     const unusedDiagnostics = checkUnusedVariables(textDocument, symbols);
     diagnostics.push(...unusedDiagnostics);
@@ -62,6 +72,61 @@ export function validateTextDocument(textDocument: TextDocument): Diagnostic[] {
     Logger.log(
         `Validation finished for ${textDocument.uri}. Found ${diagnostics.length} diagnostics.`
     );
+    return diagnostics;
+}
+
+/**
+ * Checks for duplicate symbol declarations across files.
+ * @param currentDocument The current document.
+ * @param currentSymbols The symbols in the current document.
+ * @param allDocuments All open documents.
+ * @returns A list of diagnostics.
+ */
+function checkCrossFileDuplicates(
+    currentDocument: TextDocument,
+    currentSymbols: DocumentSymbol[],
+    allDocuments: TextDocument[]
+): Diagnostic[] {
+    const diagnostics: Diagnostic[] = [];
+
+    // Only check top-level symbols (Classes, Modules, Enums, etc.)
+    // We don't want to check Methods or Fields unless they are global?
+    // In VB, Classes/Modules are top level.
+
+    for (const sym of currentSymbols) {
+        if (
+            sym.kind === SymbolKind.Class ||
+            sym.kind === SymbolKind.Module ||
+            sym.kind === SymbolKind.Interface ||
+            sym.kind === SymbolKind.Enum ||
+            sym.kind === SymbolKind.Struct
+        ) {
+            const name = sym.name.toLowerCase();
+
+            // Check other docs
+            for (const doc of allDocuments) {
+                if (doc.uri === currentDocument.uri) continue;
+
+                const otherSymbols = parseDocumentSymbols(doc);
+                // Check if any top-level symbol matches
+                const duplicate = otherSymbols.find(
+                    (s) => s.name.toLowerCase() === name && s.kind === sym.kind
+                );
+
+                if (duplicate) {
+                    diagnostics.push({
+                        severity: DiagnosticSeverity.Error,
+                        range: sym.selectionRange,
+                        message: `Symbol '${sym.name}' is already declared in '${doc.uri}'.`,
+                        source: 'SimpleVB'
+                    });
+                    // Only report once per symbol per validation run to avoid noise
+                    break;
+                }
+            }
+        }
+    }
+
     return diagnostics;
 }
 

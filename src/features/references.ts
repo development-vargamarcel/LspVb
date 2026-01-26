@@ -6,14 +6,19 @@ import { parseDocumentSymbols, findSymbolAtPosition, findSymbolParent } from '..
 
 /**
  * Handles Find References requests.
- * Finds all occurrences of the symbol under the cursor in the current document.
- * Note: Multi-file references are not yet supported.
+ * Finds all occurrences of the symbol under the cursor.
+ * Supports multi-file references if `allDocuments` is provided.
  *
  * @param params The reference parameters.
  * @param document The text document.
+ * @param allDocuments Optional list of all open documents.
  * @returns An array of locations where the symbol is found.
  */
-export function onReferences(params: ReferenceParams, document: TextDocument): Location[] {
+export function onReferences(
+    params: ReferenceParams,
+    document: TextDocument,
+    allDocuments: TextDocument[] = [document]
+): Location[] {
     Logger.log(`References requested at ${params.position.line}:${params.position.character}`);
     const word = getWordAtPosition(document, params.position);
     if (!word) {
@@ -27,59 +32,77 @@ export function onReferences(params: ReferenceParams, document: TextDocument): L
     const definition = findSymbolAtPosition(symbols, word, params.position);
 
     let searchRange: Range | null = null;
+    let targetDocuments: TextDocument[] = allDocuments;
 
     if (definition) {
         const parent = findSymbolParent(symbols, definition);
         if (parent && isMethodLike(parent.kind)) {
-            // Local variable or parameter
+            // Local variable or parameter in current document
             searchRange = parent.range;
+            targetDocuments = [document]; // Restrict to current document
             Logger.debug(
-                `References: Symbol '${word}' is local to '${parent.name}'. Restricting search to lines ${searchRange.start.line}-${searchRange.end.line}.`
+                `References: Symbol '${word}' is local to '${parent.name}'. Restricting search to lines ${searchRange.start.line}-${searchRange.end.line} in current document.`
             );
+        } else {
+            // Global or Class member defined in current document -> Search all
+            Logger.debug(`References: Symbol '${word}' is Global/Member. Searching all documents.`);
         }
+    } else {
+        // Not defined in current document (or not found). Assume Global -> Search all
+        Logger.debug(
+            `References: Symbol '${word}' definition not found in current document. Searching all documents.`
+        );
     }
 
-    const text = document.getText();
-    const lines = text.split(/\r?\n/);
     const locations: Location[] = [];
 
-    let startLine = 0;
-    let endLine = lines.length;
+    for (const doc of targetDocuments) {
+        const text = doc.getText();
+        const lines = text.split(/\r?\n/);
 
-    if (searchRange) {
-        startLine = searchRange.start.line;
-        endLine = searchRange.end.line + 1;
-        if (endLine > lines.length) endLine = lines.length;
-    }
+        let startLine = 0;
+        let endLine = lines.length;
 
-    for (let i = startLine; i < endLine; i++) {
-        const line = lines[i];
-        let match;
-        // Search all occurrences in the line
-        // We need to use a global regex or loop with exec
-        const globalRegex = new RegExp(`\\b${word}\\b`, 'gi');
+        // Apply searchRange ONLY if we are in the definition document (and searchRange is set)
+        if (searchRange && doc.uri === document.uri) {
+            startLine = searchRange.start.line;
+            endLine = searchRange.end.line + 1;
+            if (endLine > lines.length) endLine = lines.length;
+        }
 
-        while ((match = globalRegex.exec(line)) !== null) {
-            // Check if it's inside a comment?
-            const commentIndex = line.indexOf("'");
-            if (commentIndex !== -1 && match.index > commentIndex) {
-                continue;
-            }
+        for (let i = startLine; i < endLine; i++) {
+            const line = lines[i];
+            let match;
+            // Search all occurrences in the line
+            const globalRegex = new RegExp(`\\b${word}\\b`, 'gi');
 
-            locations.push({
-                uri: document.uri,
-                range: {
-                    start: { line: i, character: match.index },
-                    end: { line: i, character: match.index + word.length }
+            while ((match = globalRegex.exec(line)) !== null) {
+                // Check if it's inside a comment
+                const commentIndex = line.indexOf("'");
+                if (commentIndex !== -1 && match.index > commentIndex) {
+                    continue;
                 }
-            });
+
+                locations.push({
+                    uri: doc.uri,
+                    range: {
+                        start: { line: i, character: match.index },
+                        end: { line: i, character: match.index + word.length }
+                    }
+                });
+            }
         }
     }
 
     Logger.debug(`References: Found ${locations.length} occurrences.`);
 
     if (params.context && !params.context.includeDeclaration && definition) {
-        return locations.filter((loc) => !rangesEqual(loc.range, definition.selectionRange));
+        // Filter out the definition location if it's in the results
+        // definition comes from 'document' (current doc).
+        const defUri = document.uri;
+        return locations.filter(
+            (loc) => !(loc.uri === defUri && rangesEqual(loc.range, definition!.selectionRange))
+        );
     }
 
     return locations;

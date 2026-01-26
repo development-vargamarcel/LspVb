@@ -3,7 +3,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
 import { KEYWORDS } from '../keywords';
 import { BUILTINS } from '../builtins';
-import { parseDocumentSymbols, findSymbolAtPosition } from '../utils/parser';
+import { parseDocumentSymbols, findSymbolAtPosition, findGlobalSymbol } from '../utils/parser';
 import { getWordAtPosition } from '../utils/textUtils';
 
 /**
@@ -12,9 +12,14 @@ import { getWordAtPosition } from '../utils/textUtils';
  *
  * @param params The hover parameters (position).
  * @param document The text document.
+ * @param allDocuments Optional list of all open documents.
  * @returns A Hover object with markdown content, or null if no info found.
  */
-export function onHover(params: HoverParams, document: TextDocument): Hover | null {
+export function onHover(
+    params: HoverParams,
+    document: TextDocument,
+    allDocuments: TextDocument[] = [document]
+): Hover | null {
     Logger.log(`Hover requested at ${params.position.line}:${params.position.character}`);
     const word = getWordAtPosition(document, params.position);
     if (!word) {
@@ -48,10 +53,22 @@ export function onHover(params: HoverParams, document: TextDocument): Hover | nu
         };
     }
 
-    // 3. Check User Symbols
+    // 3. Check User Symbols (Local)
     const symbols = parseDocumentSymbols(document);
-    // Find the symbol that matches the name
-    const matchedSymbol = findSymbolAtPosition(symbols, lowerWord, params.position);
+    let matchedSymbol = findSymbolAtPosition(symbols, lowerWord, params.position);
+
+    // 4. Check Global Symbols (Other Documents)
+    if (!matchedSymbol && allDocuments.length > 0) {
+        for (const doc of allDocuments) {
+            if (doc.uri === document.uri) continue;
+            const docSymbols = parseDocumentSymbols(doc);
+            const found = findGlobalSymbol(docSymbols, lowerWord);
+            if (found) {
+                matchedSymbol = found;
+                break;
+            }
+        }
+    }
 
     if (matchedSymbol) {
         Logger.debug(`Hover: Found user symbol '${matchedSymbol.name}'.`);

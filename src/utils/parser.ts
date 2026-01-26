@@ -562,6 +562,38 @@ export function findSymbolAtPosition(
 }
 
 /**
+ * Recursively finds a symbol by name in the document symbol hierarchy,
+ * but only looks into containers (Classes, Modules, etc.), ignoring locals in Methods.
+ * Useful for finding global symbols or symbols in other documents.
+ *
+ * @param symbols The root document symbols.
+ * @param name The name of the symbol to find.
+ * @returns The matching DocumentSymbol or null.
+ */
+export function findGlobalSymbol(symbols: DocumentSymbol[], name: string): DocumentSymbol | null {
+    for (const sym of symbols) {
+        if (sym.name.toLowerCase() === name.toLowerCase()) {
+            return sym;
+        }
+        // Only recurse into containers, avoid looking into Methods (Locals)
+        if (
+            sym.children &&
+            (sym.kind === SymbolKind.Class ||
+                sym.kind === SymbolKind.Module ||
+                sym.kind === SymbolKind.Namespace ||
+                sym.kind === SymbolKind.Package ||
+                sym.kind === SymbolKind.Struct ||
+                sym.kind === SymbolKind.Interface ||
+                sym.kind === SymbolKind.Enum)
+        ) {
+            const found = findGlobalSymbol(sym.children, name);
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
+/**
  * Returns a list of all symbols visible at the given position, respecting scope and shadowing.
  * @param symbols The root document symbols.
  * @param position The position to check visibility from.

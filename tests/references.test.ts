@@ -132,4 +132,36 @@ End Sub
         expect(references[0].range.start.line).to.equal(2);
         expect(references[1].range.start.line).to.equal(3);
     });
+
+    it('should find references across multiple documents', () => {
+        const text1 = `
+Public Class SharedData
+End Class
+        `;
+        const text2 = `
+Sub Main()
+    Dim x As SharedData
+End Sub
+        `;
+        const doc1 = TextDocument.create('file:///file1.vb', 'vb', 1, text1);
+        const doc2 = TextDocument.create('file:///file2.vb', 'vb', 1, text2);
+
+        // Find refs for SharedData. Cursor on "SharedData" in doc2.
+        const position = Position.create(2, 13); // Dim x As SharedData
+
+        const params: ReferenceParams = {
+            textDocument: { uri: 'file:///file2.vb' },
+            position: position,
+            context: { includeDeclaration: true }
+        };
+
+        const references = onReferences(params, doc2, [doc1, doc2]);
+
+        // Should find:
+        // 1. Definition in file1 (Public Class SharedData)
+        // 2. Usage in file2 (Dim x As SharedData)
+        expect(references).to.have.lengthOf(2);
+        expect(references.find(r => r.uri === 'file:///file1.vb')).to.exist;
+        expect(references.find(r => r.uri === 'file:///file2.vb')).to.exist;
+    });
 });

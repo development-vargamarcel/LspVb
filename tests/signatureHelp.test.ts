@@ -72,4 +72,22 @@ describe('Signature Help Feature', () => {
 
         expect(help).to.be.null;
     });
+
+    it('should provide signature help for multi-file symbols', () => {
+        const text1 = 'Sub GlobalSub(a As Integer)\nEnd Sub';
+        const text2 = 'GlobalSub(';
+        const doc1 = TextDocument.create('file:///file1.vb', 'vb', 1, text1);
+        const doc2 = TextDocument.create('file:///file2.vb', 'vb', 1, text2);
+
+        const position = Position.create(0, 10); // After '('
+
+        const help = onSignatureHelp({
+            textDocument: { uri: doc2.uri },
+            position: position,
+            context: { triggerKind: 1, isRetrigger: false }
+        }, doc2, [doc1, doc2]);
+
+        expect(help).to.not.be.null;
+        expect(help!.signatures[0].label).to.contain('GlobalSub');
+    });
 });
