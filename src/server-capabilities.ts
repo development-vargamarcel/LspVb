@@ -38,6 +38,7 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
     codeLensProvider: {
         resolveProvider: true
     },
+    workspaceSymbolProvider: true,
     workspace: {
         workspaceFolders: {
             supported: true
