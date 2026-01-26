@@ -23,11 +23,12 @@ import {
     VAL_THEN_REGEX,
     VAL_RETURN_REGEX,
     VAL_EXIT_REGEX,
-    VAL_THROW_REGEX
+    VAL_THROW_REGEX,
+    VAL_ASSIGNMENT_REGEX
 } from '../utils/regexes';
 import { stripComment } from '../utils/textUtils';
 import { Logger } from '../utils/logger';
-import { parseDocumentSymbols } from '../utils/parser';
+import { parseDocumentSymbols, findSymbolInScope } from '../utils/parser';
 
 /**
  * Represents a code block context on the stack.
@@ -51,11 +52,12 @@ export function validateTextDocument(
     allDocuments: TextDocument[] = [textDocument]
 ): Diagnostic[] {
     Logger.log(`Starting validation for ${textDocument.uri}`);
-    const validator = new Validator(textDocument);
-    const diagnostics = validator.validate();
-
     // Check for duplicate declarations using parsed symbols
     const symbols = parseDocumentSymbols(textDocument);
+
+    const validator = new Validator(textDocument, symbols);
+    const diagnostics = validator.validate();
+
     const duplicateDiagnostics = checkDuplicates(symbols);
     diagnostics.push(...duplicateDiagnostics);
 
@@ -268,7 +270,10 @@ class Validator {
     private lines: string[];
     private isUnreachable = false;
 
-    constructor(private document: TextDocument) {
+    constructor(
+        private document: TextDocument,
+        private symbols: DocumentSymbol[]
+    ) {
         this.lines = document.getText().split(/\r?\n/);
     }
 
@@ -306,10 +311,46 @@ class Validator {
             this.validateSyntax(trimmed, i, rawLine);
             this.validateUnreachable(trimmed, i);
             this.checkMagicNumbers(trimmed, i);
+            this.checkConstAssignment(trimmed, i, rawLine);
         }
 
         this.checkUnclosedBlocks();
         return this.diagnostics;
+    }
+
+    /**
+     * Checks if a constant is being assigned a value.
+     * @param trimmed The trimmed line.
+     * @param lineIndex The line number.
+     * @param rawLine The original line.
+     */
+    private checkConstAssignment(trimmed: string, lineIndex: number, rawLine: string) {
+        // Check for assignment: x = 1
+        const match = VAL_ASSIGNMENT_REGEX.exec(trimmed);
+        if (match) {
+            // Ignore Dim x = ...
+            if (/^Dim\s/i.test(trimmed)) return;
+            // Ignore Const x = ... (declaration)
+            if (/^Const\s/i.test(trimmed)) return;
+
+            const varName = match[1];
+
+            // Find the symbol definition
+            // We need the position of the variable usage
+            const col = rawLine.indexOf(varName);
+            // findSymbolInScope expects position of usage
+            const position = { line: lineIndex, character: col };
+
+            const symbol = findSymbolInScope(this.symbols, varName, position);
+
+            if (symbol && symbol.kind === SymbolKind.Constant) {
+                this.addDiagnostic(
+                    lineIndex,
+                    `Cannot assign to constant '${varName}'.`,
+                    DiagnosticSeverity.Error
+                );
+            }
+        }
     }
 
     /**

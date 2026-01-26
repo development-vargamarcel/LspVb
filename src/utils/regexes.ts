@@ -30,6 +30,8 @@ export const PARSER_IMPORTS_REGEX = /^\s*Imports\s+([\w.]+)/i;
 export const PARSER_REGION_START_REGEX = /^\s*#Region\s+(.*)$/i;
 /** Regex for parsing Region end. */
 export const PARSER_REGION_END_REGEX = /^\s*#End\s+Region\b/i;
+/** Regex for parsing Implements statements. Group 1: Interface Name */
+export const PARSER_IMPLEMENTS_REGEX = /^\s*Implements\s+([\w.]+)/i;
 
 // For Validation (Line by Line)
 
@@ -72,6 +74,8 @@ export const VAL_RETURN_REGEX = /^\s*Return\b/i;
 export const VAL_EXIT_REGEX = /^\s*Exit\s+(Sub|Function|Property|Do|For|Select|While)\b/i;
 /** Regex for detecting Throw statements. */
 export const VAL_THROW_REGEX = /^\s*Throw\b/i;
+/** Regex for detecting variable assignment (e.g. x = 1). Group 1: Variable Name */
+export const VAL_ASSIGNMENT_REGEX = /^\s*(\w+)\s*=/i;
 
 /** Regex for identifying an If statement line. */
 export const VAL_IF_LINE_REGEX = /^\s*If\s+.*$/i;

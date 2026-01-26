@@ -29,6 +29,7 @@ import {
     RenameParams,
     WorkspaceEdit,
     Location,
+    ImplementationParams,
     DocumentFormattingParams,
     DocumentRangeFormattingParams,
     TextEdit,
@@ -57,6 +58,7 @@ import { onCompletion, onCompletionResolve } from './features/completion';
 import { onHover } from './features/hover';
 import { onFoldingRanges } from './features/folding';
 import { onDefinition } from './features/definition';
+import { onImplementation } from './features/implementation';
 import { onTypeDefinition } from './features/typeDefinition';
 import { onReferences } from './features/references';
 import { onRenameRequest } from './features/rename';
@@ -198,6 +200,16 @@ connection.onDefinition(
         Logger.log(`Definition requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
         return onDefinition(params, document, documents.all());
     }, null, 'Definition')
+);
+
+// This handler provides implementation lookup
+connection.onImplementation(
+    safeHandler((params: ImplementationParams): Location[] | null => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return null;
+        Logger.log(`Implementation requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
+        return onImplementation(params, document, documents.all());
+    }, null, 'Implementation')
 );
 
 // This handler provides type definition lookup
