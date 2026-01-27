@@ -79,7 +79,7 @@ Sub MySub()
 End Sub
         `;
         const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
-        // "End " is at line 2. Position 8.
+        // "End " is at line 2. Position 8 (after space).
         const position = Position.create(2, 8);
 
         const params: any = {

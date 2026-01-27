@@ -122,3 +122,8 @@ Displays the number of references for classes, methods, and properties above the
 
 ## 15. Document Highlight (Structure)
 - When a method/function definition is selected, control flow keywords (`Exit`, `Return`, `End`) are highlighted.
+
+## 16. Smart Selection Range
+Allows intelligently expanding the selection based on the code structure.
+- **Levels**: Word → Line → Code Block (e.g., contents of an `If`) → Parent Block (e.g., the `If` itself) → ... → Root.
+- **Usage**: Use the standard editor command for expanding selection (e.g., `Shift+Alt+Right` in VS Code).

@@ -47,7 +47,9 @@ import {
     CodeLensParams,
     CodeLens,
     WorkspaceSymbolParams,
-    SymbolInformation
+    SymbolInformation,
+    SelectionRangeParams,
+    SelectionRange
 } from 'vscode-languageserver/node';
 
 import {
@@ -69,6 +71,7 @@ import { onDocumentHighlight } from './features/documentHighlight';
 import { onInlayHints } from './features/inlayHints';
 import { onCodeLens, onCodeLensResolve } from './features/codeLens';
 import { onWorkspaceSymbol } from './features/workspaceSymbol';
+import { onSelectionRanges } from './features/selectionRange';
 import { parseDocumentSymbols } from './utils/parser';
 import { formatDocument, formatRange } from './features/formatting';
 import { Logger } from './utils/logger';
@@ -290,6 +293,16 @@ connection.languages.inlayHint.on(
         Logger.log(`Inlay Hints requested for ${params.textDocument.uri}`);
         return onInlayHints(params, document);
     }, [], 'InlayHints')
+);
+
+// This handler provides selection ranges
+connection.onSelectionRanges(
+    safeHandler((params: SelectionRangeParams): SelectionRange[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        // Logging inside handler
+        return onSelectionRanges(params, document);
+    }, [], 'SelectionRanges')
 );
 
 // This handler provides workspace symbols
