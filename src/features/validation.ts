@@ -410,7 +410,9 @@ class Validator {
                 for (let i = 1; i < parts.length; i++) {
                     const nextPart = parts[i];
                     if (currentSymbol && currentSymbol.children) {
-                        const child: DocumentSymbol | undefined = currentSymbol.children.find(c => c.name.toLowerCase() === nextPart.toLowerCase());
+                        const child: DocumentSymbol | undefined = currentSymbol.children.find(
+                            (c) => c.name.toLowerCase() === nextPart.toLowerCase()
+                        );
                         if (child) {
                             currentSymbol = child;
                         } else {
@@ -424,7 +426,7 @@ class Validator {
                 }
 
                 if (valid && currentSymbol) {
-                     // Check if the final symbol is a valid type or namespace
+                    // Check if the final symbol is a valid type or namespace
                     if (
                         currentSymbol.kind === SymbolKind.Class ||
                         currentSymbol.kind === SymbolKind.Interface ||

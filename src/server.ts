@@ -49,13 +49,20 @@ import {
     WorkspaceSymbolParams,
     SymbolInformation,
     SelectionRangeParams,
-    SelectionRange
+    SelectionRange,
+    CallHierarchyPrepareParams,
+    CallHierarchyIncomingCallsParams,
+    CallHierarchyOutgoingCallsParams,
+    CallHierarchyItem,
+    CallHierarchyIncomingCall,
+    CallHierarchyOutgoingCall
 } from 'vscode-languageserver/node';
 
 import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
 
+import { onPrepareCallHierarchy, onIncomingCalls, onOutgoingCalls } from './features/callHierarchy';
 import { onCompletion, onCompletionResolve } from './features/completion';
 import { onHover } from './features/hover';
 import { onFoldingRanges } from './features/folding';
@@ -213,6 +220,27 @@ connection.onImplementation(
         Logger.log(`Implementation requested at ${params.textDocument.uri}:${params.position.line}:${params.position.character}`);
         return onImplementation(params, document, documents.all());
     }, null, 'Implementation')
+);
+
+// Call Hierarchy
+connection.languages.callHierarchy.onPrepare(
+    safeHandler((params: CallHierarchyPrepareParams): CallHierarchyItem[] | null => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return null;
+        return onPrepareCallHierarchy(params, document);
+    }, null, 'CallHierarchyPrepare')
+);
+
+connection.languages.callHierarchy.onIncomingCalls(
+    safeHandler((params: CallHierarchyIncomingCallsParams): CallHierarchyIncomingCall[] | null => {
+        return onIncomingCalls(params, documents.all());
+    }, null, 'CallHierarchyIncomingCalls')
+);
+
+connection.languages.callHierarchy.onOutgoingCalls(
+    safeHandler((params: CallHierarchyOutgoingCallsParams): CallHierarchyOutgoingCall[] | null => {
+        return onOutgoingCalls(params, documents.all());
+    }, null, 'CallHierarchyOutgoingCalls')
 );
 
 // This handler provides type definition lookup
