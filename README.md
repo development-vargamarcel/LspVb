@@ -29,6 +29,7 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Document Highlight**: Highlights all occurrences of a symbol in the editor.
 - **Inlay Hints**: Displays parameter names inline for function and subroutine calls.
 - **Code Lens**: Displays reference counts for classes and methods (calculated across all open files).
+- **Smart Selection Range**: Expand selection intelligently from Word → Line → Block → Parent Block using standard editor commands (e.g., `Shift+Alt+Right` in VS Code).
 
 ## Architecture
 

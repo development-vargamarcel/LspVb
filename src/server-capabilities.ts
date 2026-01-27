@@ -40,6 +40,7 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
         resolveProvider: true
     },
     workspaceSymbolProvider: true,
+    selectionRangeProvider: true,
     workspace: {
         workspaceFolders: {
             supported: true
