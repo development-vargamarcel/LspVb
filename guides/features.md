@@ -100,6 +100,7 @@ Provides quick fixes for common errors:
 - Add missing closing statements (e.g. `End If`, `Next`).
 - **Remove Unused Variable**: Safely removes unused local variables, including handling multiple declarations (e.g., `Dim x, y`).
 - **Extract to Constant**: Extracts a magic number to a `Const` definition.
+- **Wrap in Try/Catch**: Wraps the selected lines of code in a `Try...Catch...End Try` block, preserving indentation.
 
 ## 11. Signature Help
 Shows parameter information when typing a function call.

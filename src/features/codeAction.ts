@@ -409,6 +409,70 @@ export function onCodeAction(
         }
     }
 
+    // Check for "Wrap in Try/Catch"
+    const range = params.range;
+    if (range.start.line !== range.end.line || range.start.character !== range.end.character) {
+        // Selection exists
+        const startLine = range.start.line;
+        let endLine = range.end.line;
+
+        // Adjust end line if selection ends at column 0 of next line
+        if (range.end.character === 0 && range.end.line > range.start.line) {
+            endLine = range.end.line - 1;
+        }
+
+        // Expand selection to full lines
+        const expandedRange = {
+            start: { line: startLine, character: 0 },
+            end: { line: endLine + 1, character: 0 }
+        };
+
+        const textToWrap = document.getText(expandedRange);
+
+        // Only propose if selection is valid
+        if (textToWrap.trim().length > 0) {
+            // Get indentation from the first line
+            const firstLine = document.getText({
+                start: { line: startLine, character: 0 },
+                end: { line: startLine + 1, character: 0 }
+            });
+            const indentationMatch = firstLine.match(/^(\s*)/);
+            const indentation = indentationMatch ? indentationMatch[1] : '';
+
+            // Detect indentation unit (tab or 4 spaces)
+            const indentUnit = indentation.includes('\t') ? '\t' : '    ';
+
+            const linesToWrap = textToWrap.split(/\r?\n/);
+            // Handle split edge case: if text ends with newline, split gives empty string at end
+            if (linesToWrap.length > 0 && linesToWrap[linesToWrap.length - 1] === '') {
+                linesToWrap.pop();
+            }
+
+            const wrappedText = [
+                `${indentation}Try`,
+                ...linesToWrap.map((l) => indentUnit + l),
+                `${indentation}Catch ex As Exception`,
+                `${indentation}${indentUnit}' TODO: Handle exception`,
+                `${indentation}End Try`,
+                '' // Newline at end
+            ].join('\n');
+
+            const action: CodeAction = {
+                title: 'Wrap in Try...Catch',
+                kind: CodeActionKind.RefactorRewrite,
+                edit: {
+                    changes: {
+                        [document.uri]: [TextEdit.replace(expandedRange, wrappedText)]
+                    }
+                }
+            };
+            actions.push(action);
+            Logger.debug(
+                `CodeAction: Proposed "Wrap in Try...Catch" for lines ${startLine}-${endLine}`
+            );
+        }
+    }
+
     Logger.debug(`CodeAction: Returning ${actions.length} actions.`);
     return actions;
 }

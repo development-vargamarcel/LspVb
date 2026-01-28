@@ -25,9 +25,8 @@ describe('Code Action Feature', () => {
             context: { diagnostics: [diagnostic] }
         }, document);
 
-        expect(actions).to.have.lengthOf(1);
-        const action = actions[0] as CodeAction;
-        expect(action.title).to.equal("Add 'Then'");
+        const action = actions.find(a => a.title === "Add 'Then'") as CodeAction;
+        expect(action).to.exist;
         expect(action.kind).to.equal(CodeActionKind.QuickFix);
 
         const edits = action.edit!.changes![document.uri];
@@ -47,8 +46,8 @@ describe('Code Action Feature', () => {
             context: { diagnostics: [diagnostic] }
         }, document);
 
-        expect(actions).to.have.lengthOf(1);
-        const action = actions[0] as CodeAction;
+        const action = actions.find(a => a.title === "Add 'Then'") as CodeAction;
+        expect(action).to.exist;
 
         const edits = action.edit!.changes![document.uri];
         // "If x = 1 ' comment" -> index of ' is 9.
@@ -70,9 +69,8 @@ describe('Code Action Feature', () => {
             context: { diagnostics: [diagnostic] }
         }, document);
 
-        expect(actions).to.have.lengthOf(1);
-        const action = actions[0] as CodeAction;
-        expect(action.title).to.equal("Add 'As Object'");
+        const action = actions.find(a => a.title === "Add 'As Object'") as CodeAction;
+        expect(action).to.exist;
 
         const edits = action.edit!.changes![document.uri];
         expect(edits[0].newText).to.equal(" As Object");
@@ -90,9 +88,8 @@ describe('Code Action Feature', () => {
             context: { diagnostics: [diagnostic] }
         }, document);
 
-        expect(actions).to.have.lengthOf(1);
-        const action = actions[0] as CodeAction;
-        expect(action.title).to.equal("Initialize with 0");
+        const action = actions.find(a => a.title === "Initialize with 0") as CodeAction;
+        expect(action).to.exist;
 
         const edits = action.edit!.changes![document.uri];
         expect(edits[0].newText).to.equal(" = 0");
