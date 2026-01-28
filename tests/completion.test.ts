@@ -79,7 +79,7 @@ Sub MySub()
 End Sub
         `;
         const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
-        // "End " is at line 2. Position 8 (after space).
+        // "    End " is at line 2. Length 8. Position 8 is valid.
         const position = Position.create(2, 8);
 
         const params: any = {
@@ -103,7 +103,8 @@ Sub MySub()
 End Sub
         `;
         const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
-        const position = Position.create(3, 12); // "End "
+        // "        End " -> 8 spaces + 3 chars + 1 space = 12 chars.
+        const position = Position.create(3, 12);
 
         const params: any = {
             textDocument: { uri: 'file:///test.vb' },
