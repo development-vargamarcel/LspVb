@@ -41,6 +41,7 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
     },
     workspaceSymbolProvider: true,
     selectionRangeProvider: true,
+    callHierarchyProvider: true,
     workspace: {
         workspaceFolders: {
             supported: true

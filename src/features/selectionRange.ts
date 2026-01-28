@@ -23,7 +23,9 @@ export function onSelectionRanges(
     document: TextDocument
 ): SelectionRange[] {
     const result: SelectionRange[] = [];
-    Logger.log(`Selection Range requested for ${params.textDocument.uri} at ${params.positions.length} positions.`);
+    Logger.log(
+        `Selection Range requested for ${params.textDocument.uri} at ${params.positions.length} positions.`
+    );
 
     const symbols = parseDocumentSymbols(document);
 
@@ -85,16 +87,16 @@ export function onSelectionRanges(
         // If lineRange is larger (e.g. we are at root and document is 1 line), handle gracefully.
         // Assuming strict containment.
         if (contains(currentRange.range, lineRange.range)) {
-             currentRange = lineRange;
+            currentRange = lineRange;
         }
 
         // Add Word Range (if on a word)
         const wordRange = getWordRangeAtPosition(document, position);
         if (wordRange && contains(currentRange.range, wordRange)) {
-             currentRange = {
-                 range: wordRange,
-                 parent: currentRange
-             };
+            currentRange = {
+                range: wordRange,
+                parent: currentRange
+            };
         }
 
         result.push(currentRange);
