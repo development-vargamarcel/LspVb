@@ -115,28 +115,44 @@ export function onSignatureHelp(
                         (symbol.detail.startsWith('Sub') || symbol.detail.startsWith('Function'))
                     ) {
                         Logger.debug('SignatureHelp: Found symbol definition.');
-                        // detail format is "Sub(arg1, arg2)" or "Function(args)"
-                        // We need to parse detail to get label and parameters.
 
-                        // detail: "Sub(x As Integer, y As String)"
-                        const label = `${symbol.name}${symbol.detail.substring(symbol.detail.indexOf('('))}`;
-                        const documentation = `Signature for ${symbol.name}`;
-
-                        // Parse parameters from detail
-                        const paramString = symbol.detail.substring(
-                            symbol.detail.indexOf('(') + 1,
-                            symbol.detail.lastIndexOf(')')
-                        );
+                        // Use parsed children to get accurate parameters (including complex types)
                         const parameters: ParameterInformation[] = [];
-
-                        if (paramString.trim()) {
-                            const paramsList = paramString.split(',');
-                            for (const p of paramsList) {
-                                parameters.push({
-                                    label: p.trim()
-                                });
+                        if (symbol.children) {
+                            for (const child of symbol.children) {
+                                // Parser marks arguments with "Argument" prefix in detail
+                                if (child.detail && child.detail.startsWith('Argument')) {
+                                    // Extract "x As Integer" from "Argument x As Integer"
+                                    const paramLabel = child.detail.substring('Argument '.length);
+                                    parameters.push({
+                                        label: paramLabel,
+                                        documentation: child.detail
+                                    });
+                                }
                             }
                         }
+
+                        // Fallback to parsing string if children approach yielded nothing but signature implies args
+                        // (Legacy support or if parser behavior changes)
+                        if (parameters.length === 0 && symbol.detail.includes('(')) {
+                             const paramString = symbol.detail.substring(
+                                symbol.detail.indexOf('(') + 1,
+                                symbol.detail.lastIndexOf(')')
+                            );
+                            if (paramString.trim()) {
+                                const paramsList = paramString.split(',');
+                                for (const p of paramsList) {
+                                    parameters.push({
+                                        label: p.trim()
+                                    });
+                                }
+                            }
+                        }
+
+                        // Reconstruct label from parameters for consistent display
+                        const paramsLabel = parameters.map(p => p.label).join(', ');
+                        const label = `${symbol.name}(${paramsLabel})`;
+                        const documentation = `Signature for ${symbol.name}`;
 
                         return {
                             signatures: [

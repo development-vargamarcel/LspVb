@@ -378,6 +378,9 @@ class Validator {
             // 1. Check built-ins
             if (BUILTIN_TYPES.has(typeName.toLowerCase())) continue;
 
+            // Allow System.* and Microsoft.* namespaces
+            if (typeName.startsWith('System.') || typeName.startsWith('Microsoft.')) continue;
+
             // 2. Check if type exists in scope (Classes, Enums, Interfaces, Structs)
             // Handle Qualified Names (e.g., MyLib.MyClass)
             const parts = typeName.split('.');

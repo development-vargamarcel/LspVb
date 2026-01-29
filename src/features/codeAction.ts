@@ -18,6 +18,25 @@ import { parseDocumentSymbols, getSymbolContainingPosition } from '../utils/pars
  * @param document The text document.
  * @returns An array of CodeActions or Commands.
  */
+// Mapping of common types to their namespaces for "Add Imports"
+const COMMON_IMPORTS: Record<string, string> = {
+    'List': 'System.Collections.Generic',
+    'Dictionary': 'System.Collections.Generic',
+    'HashSet': 'System.Collections.Generic',
+    'Queue': 'System.Collections.Generic',
+    'Stack': 'System.Collections.Generic',
+    'File': 'System.IO',
+    'Directory': 'System.IO',
+    'Path': 'System.IO',
+    'Stream': 'System.IO',
+    'StreamReader': 'System.IO',
+    'StreamWriter': 'System.IO',
+    'StringBuilder': 'System.Text',
+    'Regex': 'System.Text.RegularExpressions',
+    'Task': 'System.Threading.Tasks',
+    'Thread': 'System.Threading'
+};
+
 export function onCodeAction(
     params: CodeActionParams,
     document: TextDocument
@@ -29,6 +48,34 @@ export function onCodeAction(
     Logger.debug(`CodeAction: Processing ${diagnostics.length} diagnostics.`);
 
     for (const diagnostic of diagnostics) {
+        if (diagnostic.message.includes("Type '") && diagnostic.message.includes("' is not defined")) {
+            // "Type 'List' is not defined."
+            const match = /Type '([^']+)' is not defined/.exec(diagnostic.message);
+            if (match) {
+                const typeName = match[1];
+                // Handle generics e.g. List(Of T) -> List
+                const baseType = typeName.split('(')[0].trim();
+                const importNamespace = COMMON_IMPORTS[baseType];
+
+                if (importNamespace) {
+                    const action: CodeAction = {
+                        title: `Import '${importNamespace}'`,
+                        kind: CodeActionKind.QuickFix,
+                        diagnostics: [diagnostic],
+                        edit: {
+                            changes: {
+                                [document.uri]: [
+                                    TextEdit.insert({ line: 0, character: 0 }, `Imports ${importNamespace}\n`)
+                                ]
+                            }
+                        }
+                    };
+                    actions.push(action);
+                    Logger.debug(`CodeAction: Proposed "Import ${importNamespace}" for ${baseType}`);
+                }
+            }
+        }
+
         if (diagnostic.message.includes("Missing 'Then' in If statement")) {
             const range = diagnostic.range;
             const lineText = document.getText(range);
@@ -409,8 +456,63 @@ export function onCodeAction(
         }
     }
 
-    // Check for "Wrap in Try/Catch"
     const range = params.range;
+
+    // Check for "Generate Property" (Encapsulate Field)
+    // Trigger only if single line or no selection (cursor)
+    if (range.start.line === range.end.line) {
+        const lineIndex = range.start.line;
+        const lineText = document.getText({
+            start: { line: lineIndex, character: 0 },
+            end: { line: lineIndex + 1, character: 0 }
+        });
+        const trimmed = lineText.trim();
+
+        // Regex for private field: (Private|Dim) _name As Type
+        // Captures: 1=Private/Dim, 2=Name (without _), 3=Type
+        const fieldMatch = /^(?:Private|Dim)\s+_(\w+)\s+As\s+([\w.]+)/i.exec(trimmed);
+
+        if (fieldMatch) {
+            const name = fieldMatch[1]; // e.g. "foo" from "_foo"
+            const type = fieldMatch[2]; // e.g. "Integer"
+
+            // Capitalize property name
+            const propName = name.charAt(0).toUpperCase() + name.slice(1);
+
+            // Indentation
+            const indentationMatch = lineText.match(/^(\s*)/);
+            const indentation = indentationMatch ? indentationMatch[1] : '';
+            const indentUnit = indentation.includes('\t') ? '\t' : '    ';
+
+            const propertyText = [
+                `Public Property ${propName} As ${type}`,
+                `${indentUnit}Get`,
+                `${indentUnit}${indentUnit}Return _${name}`,
+                `${indentUnit}End Get`,
+                `${indentUnit}Set(value As ${type})`,
+                `${indentUnit}${indentUnit}_${name} = value`,
+                `${indentUnit}End Set`,
+                `End Property`
+            ].map((l) => indentation + l).join('\n') + '\n';
+
+            // Insert after the field line
+            const insertPos = { line: lineIndex + 1, character: 0 };
+
+            const action: CodeAction = {
+                title: `Encapsulate Field: Generate Property '${propName}'`,
+                kind: CodeActionKind.Refactor,
+                edit: {
+                    changes: {
+                        [document.uri]: [TextEdit.insert(insertPos, propertyText)]
+                    }
+                }
+            };
+            actions.push(action);
+            Logger.debug(`CodeAction: Proposed "Encapsulate Field" for _${name}`);
+        }
+    }
+
+    // Check for "Wrap in Try/Catch"
     if (range.start.line !== range.end.line || range.start.character !== range.end.character) {
         // Selection exists
         const startLine = range.start.line;
