@@ -27,11 +27,13 @@ import {
     Definition,
     ReferenceParams,
     RenameParams,
+    PrepareRenameParams,
     WorkspaceEdit,
     Location,
     ImplementationParams,
     DocumentFormattingParams,
     DocumentRangeFormattingParams,
+    DocumentOnTypeFormattingParams,
     TextEdit,
     CodeActionParams,
     CodeAction,
@@ -50,6 +52,7 @@ import {
     SymbolInformation,
     SelectionRangeParams,
     SelectionRange,
+    Range,
     CallHierarchyPrepareParams,
     CallHierarchyIncomingCallsParams,
     CallHierarchyOutgoingCallsParams,
@@ -71,6 +74,7 @@ import { onImplementation } from './features/implementation';
 import { onTypeDefinition } from './features/typeDefinition';
 import { onReferences } from './features/references';
 import { onRenameRequest } from './features/rename';
+import { onPrepareRename } from './features/prepareRename';
 import { onCodeAction } from './features/codeAction';
 import { onSignatureHelp } from './features/signatureHelp';
 import { onSemanticTokens } from './features/semanticTokens';
@@ -80,7 +84,7 @@ import { onCodeLens, onCodeLensResolve } from './features/codeLens';
 import { onWorkspaceSymbol } from './features/workspaceSymbol';
 import { onSelectionRanges } from './features/selectionRange';
 import { parseDocumentSymbols } from './utils/parser';
-import { formatDocument, formatRange } from './features/formatting';
+import { formatDocument, formatRange, formatOnType } from './features/formatting';
 import { Logger } from './utils/logger';
 import { ValidationScheduler } from './utils/scheduler';
 import { safeHandler } from './utils/safeHandler';
@@ -283,6 +287,15 @@ connection.onRenameRequest(
     }, null, 'Rename')
 );
 
+// This handler provides prepare rename
+connection.onPrepareRename(
+    safeHandler((params: PrepareRenameParams): Range | null => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return null;
+        return onPrepareRename(params, document);
+    }, null, 'PrepareRename')
+);
+
 // This handler provides code actions
 connection.onCodeAction(
     safeHandler((params: CodeActionParams): (Command | CodeAction)[] => {
@@ -393,6 +406,15 @@ connection.onDocumentRangeFormatting(
         Logger.log(`Range Formatting requested for ${params.textDocument.uri}`);
         return formatRange(document, params.range, params.options);
     }, [], 'RangeFormatting')
+);
+
+// This handler provides on type formatting
+connection.onDocumentOnTypeFormatting(
+    safeHandler((params: DocumentOnTypeFormattingParams): TextEdit[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        return formatOnType(document, params);
+    }, [], 'OnTypeFormatting')
 );
 
 // Make the text document manager listen on the connection

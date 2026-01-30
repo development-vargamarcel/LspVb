@@ -202,6 +202,8 @@ export function onCompletion(
     }
     const prevWord = text.substring(start, end).toLowerCase();
 
+    Logger.debug(`Completion: Offset=${offset}, PrevWord='${prevWord}'`);
+
     const isTypeContext = prevWord === 'as';
     const isEndContext = prevWord === 'end';
 
@@ -217,7 +219,9 @@ export function onCompletion(
     // Special handling for "End" context
     if (isEndContext) {
         const container = getSymbolContainingPosition(symbols, params.position);
+        Logger.debug(`Completion: Container found: ${container ? container.name : 'None'}`);
         if (container) {
+            Logger.debug(`Completion: Container detail: ${container.detail}`);
             let closing = '';
             // Check based on Kind or Detail
             if (container.kind === SymbolKind.Namespace) {

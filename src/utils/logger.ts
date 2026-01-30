@@ -22,6 +22,8 @@ export class Logger {
     static log(message: string) {
         if (Logger.connection) {
             Logger.connection.console.log(`[Info] ${message}`);
+        } else {
+            console.log(`[Info] ${message}`);
         }
     }
 
@@ -32,6 +34,8 @@ export class Logger {
     static debug(message: string) {
         if (Logger.connection) {
             Logger.connection.console.log(`[Debug] ${message}`);
+        } else {
+            console.log(`[Debug] ${message}`);
         }
     }
 
@@ -42,6 +46,8 @@ export class Logger {
     static error(message: string) {
         if (Logger.connection) {
             Logger.connection.console.error(`[Error] ${message}`);
+        } else {
+            console.error(`[Error] ${message}`);
         }
     }
 
@@ -53,6 +59,8 @@ export class Logger {
         if (Logger.connection) {
             // console.warn might not exist on connection, using log with [Warn]
             Logger.connection.console.log(`[Warn] ${message}`);
+        } else {
+            console.warn(`[Warn] ${message}`);
         }
     }
 }

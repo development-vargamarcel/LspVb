@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { formatDocument } from '../src/features/formatting';
+import { formatDocument, formatOnType } from '../src/features/formatting';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { FormattingOptions } from 'vscode-languageserver/node';
 
@@ -188,5 +188,45 @@ Sub Main()
 End Sub
 `;
         expect(format(input)).to.equal(expected);
+    });
+});
+
+describe('On Type Formatting Tests', () => {
+    it('should indent new line after Sub', () => {
+        const input = `Sub Main()
+`; // User pressed Enter after Sub Main()
+        const document = TextDocument.create('uri', 'vb', 1, input);
+        // Line 0 is "Sub Main()". Line 1 is empty.
+        // The call happens when cursor is at Line 1, char 0.
+        const edits = formatOnType(document, {
+            textDocument: { uri: 'uri' },
+            position: { line: 1, character: 0 },
+            ch: '\n',
+            options: { tabSize: 4, insertSpaces: true }
+        });
+
+        expect(edits).to.have.lengthOf(1);
+        expect(edits[0].newText).to.equal('    ');
+    });
+
+    it('should indent new line after If', () => {
+        const input = `Sub Main()
+    If x Then
+
+    End If
+End Sub`;
+        const document = TextDocument.create('uri', 'vb', 1, input);
+        // Line 0: Sub Main()
+        // Line 1:     If x Then
+        // Line 2:     (user pressed Enter)
+        const edits = formatOnType(document, {
+            textDocument: { uri: 'uri' },
+            position: { line: 2, character: 0 },
+            ch: '\n',
+            options: { tabSize: 4, insertSpaces: true }
+        });
+
+        expect(edits).to.have.lengthOf(1);
+        expect(edits[0].newText).to.equal('        ');
     });
 });
