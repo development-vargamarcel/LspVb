@@ -11,6 +11,7 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
     - **Flow Control**: Validation for `Return` statements (context and value) and `Exit` statements (matching block type).
     - **Scope**: Detection of duplicate variable/symbol declarations within the same scope.
     - **Unused Variables**: Detection of local variables that are declared but never used.
+    - **Empty Blocks**: Detection of empty `Catch` blocks.
     - **Code Style**: Checks for Max Line Length, Magic Numbers, and Variable Naming conventions.
     - **Tasks**: Detects `TODO` and `FIXME` comments.
 - **Document Symbols**: Outline view support for Sub, Function, Class, Module, Property, Structure, Interface, Enum, Constants, and Variables.
@@ -23,7 +24,7 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Find References**: Find all occurrences of a symbol. Supports searching across all open files.
 - **Rename**: Rename a symbol and all its occurrences. Supports renaming across all open files. Now supports **Prepare Rename** to validate the symbol before renaming.
 - **Workspace Symbols**: Search for symbols (Classes, Methods, Variables) across all open files in the workspace.
-- **Code Actions**: Quick fixes for common errors (missing `Then`, `As`, return types), removing unused variables, extracting constants, **Wrap in Try/Catch**, **Encapsulate Field** (Generate Property), and **Add Imports** (for common .NET types).
+- **Code Actions**: Quick fixes for common errors (missing `Then`, `As`, return types), removing unused variables, extracting constants, **Wrap in Try/Catch**, **Encapsulate Field** (Generate Property), **Generate Constructor** (from Private fields), and **Add Imports** (for common .NET types).
 - **Signature Help**: Parameter hints for function and subroutine calls.
 - **Semantic Tokens**: Syntax highlighting for different symbol types (classes, variables, etc.).
 - **Document Highlight**: Highlights all occurrences of a symbol in the editor.

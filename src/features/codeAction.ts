@@ -4,7 +4,9 @@ import {
     CodeActionParams,
     Command,
     TextEdit,
-    WorkspaceEdit
+    WorkspaceEdit,
+    SymbolKind,
+    DocumentSymbol
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
@@ -509,6 +511,95 @@ export function onCodeAction(
             };
             actions.push(action);
             Logger.debug(`CodeAction: Proposed "Encapsulate Field" for _${name}`);
+        }
+    }
+
+    // Check for "Generate Constructor"
+    // Trigger if cursor is inside a Class/Structure and no selection (or range is single line)
+    if (range.start.line === range.end.line) {
+        // We need symbols to check container
+        // Note: This parses the document again. In a real LS, we might cache this or use a shared model.
+        const symbols = parseDocumentSymbols(document);
+        const container = getSymbolContainingPosition(symbols, range.start);
+
+        if (
+            container &&
+            (container.kind === SymbolKind.Class || container.kind === SymbolKind.Struct)
+        ) {
+            // Check if constructor exists
+            const hasConstructor = container.children?.some(
+                (c) => c.name.toLowerCase() === 'new' && c.kind === SymbolKind.Method
+            );
+
+            if (!hasConstructor && container.children) {
+                // Collect fields
+                // We look for fields starting with _ (private backing fields)
+                // Also check "Dim" fields if they are inside Class (treated as Private usually)
+
+                const fields = container.children.filter(
+                    (c) =>
+                        (c.kind === SymbolKind.Field || c.kind === SymbolKind.Variable) &&
+                        c.name.startsWith('_')
+                );
+
+                if (fields.length > 0) {
+                    const args: string[] = [];
+                    const assignments: string[] = [];
+
+                    for (const field of fields) {
+                        const propName = field.name.substring(1); // remove _
+                        // Parse type from detail: "Private _name As Type" or "Dim _name As Type"
+                        let type = 'Object';
+                        const asMatch = /\bAs\s+([\w.]+)/i.exec(field.detail || '');
+                        if (asMatch) {
+                            type = asMatch[1];
+                        }
+                        args.push(`${propName} As ${type}`);
+                        assignments.push(`    ${field.name} = ${propName}`);
+                    }
+
+                    // Determine indentation
+                    // Container range start is the "Class Person" line.
+                    // We want the indentation of that line + 1 level.
+                    const containerLineText = document.getText({
+                        start: { line: container.range.start.line, character: 0 },
+                        end: { line: container.range.start.line + 1, character: 0 }
+                    });
+                    const indentationMatch = containerLineText.match(/^(\s*)/);
+                    const indentation = indentationMatch ? indentationMatch[1] : '';
+                    const indentUnit = indentation.includes('\t') ? '\t' : '    ';
+                    const methodIndent = indentation + indentUnit;
+                    const bodyIndent = methodIndent + indentUnit;
+
+                    const argsStr = args.join(', ');
+                    const assignmentsStr = assignments.map((a) => methodIndent + a).join('\n');
+
+                    const constructorCode = [
+                        '',
+                        `${methodIndent}Public Sub New(${argsStr})`,
+                        assignmentsStr,
+                        `${methodIndent}End Sub`,
+                        ''
+                    ].join('\n');
+
+                    // Insert after the last field
+                    // Find the last field in the list (ordered by line ideally, but parser returns in order)
+                    const lastField = fields[fields.length - 1];
+                    const insertPos = { line: lastField.range.end.line + 1, character: 0 };
+
+                    const action: CodeAction = {
+                        title: `Generate Constructor`,
+                        kind: CodeActionKind.Refactor,
+                        edit: {
+                            changes: {
+                                [document.uri]: [TextEdit.insert(insertPos, constructorCode)]
+                            }
+                        }
+                    };
+                    actions.push(action);
+                    Logger.debug(`CodeAction: Proposed "Generate Constructor" with ${args.length} parameters`);
+                }
+            }
         }
     }
 

@@ -37,7 +37,7 @@ export const PARSER_IMPLEMENTS_REGEX = /^\s*Implements\s+([\w.]+)/i;
 
 /** Regex for validating the start of a block. */
 export const VAL_BLOCK_START_REGEX = new RegExp(
-    `^\\s*(?:(?:${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Namespace)\\b`,
+    `^\\s*(?:(?:${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Namespace|Try)\\b`,
     'i'
 );
 /** Regex for validating the start of an If statement. */
@@ -53,7 +53,7 @@ export const VAL_WHILE_START_REGEX = /^\s*While\b/i;
 
 /** Regex for validating the end of a block (End Sub, End If, etc.). */
 export const VAL_BLOCK_END_REGEX =
-    /^\s*End\s+(Sub|Function|Class|Module|Property|If|Select|Structure|Interface|Enum|Namespace)\b/i;
+    /^\s*End\s+(Sub|Function|Class|Module|Property|If|Select|Structure|Interface|Enum|Namespace|Try)\b/i;
 /** Regex for validating Next statement. */
 export const VAL_NEXT_REGEX = /^\s*Next\b/i;
 /** Regex for validating Loop statement. */
@@ -81,6 +81,10 @@ export const VAL_ASSIGNMENT_REGEX = /^\s*(\w+)\s*=/i;
 export const VAL_IF_LINE_REGEX = /^\s*If\s+.*$/i;
 /** Regex for identifying the 'Then' keyword. */
 export const VAL_THEN_REGEX = /\bThen\b/i;
+/** Regex for identifying Catch statement. */
+export const VAL_CATCH_REGEX = /^\s*Catch\b/i;
+/** Regex for identifying Finally statement. */
+export const VAL_FINALLY_REGEX = /^\s*Finally\b/i;
 
 // For Formatting (Additional)
 
