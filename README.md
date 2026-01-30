@@ -16,12 +16,12 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Document Symbols**: Outline view support for Sub, Function, Class, Module, Property, Structure, Interface, Enum, Constants, and Variables.
 - **Hover Information**: Basic hover support for keywords and user-defined symbols.
 - **Folding**: Range folding for blocks (`Sub`, `Function`, `If`, `For`, `Do`, `While`, etc.) and comment blocks.
-- **Formatting**: Auto-formatting support for indentation of blocks and nested structures.
+- **Formatting**: Auto-formatting support for indentation of blocks and nested structures. Supports **On Type Formatting** to auto-indent when pressing Enter.
 - **Go to Definition**: Jump to the definition of a symbol. Supports finding definitions across multiple open files.
 - **Go to Implementation**: Jump to the implementation of an Interface or Class. Supports finding implementations across multiple open files.
 - **Go to Type Definition**: Jump to the definition of a variable's type.
 - **Find References**: Find all occurrences of a symbol. Supports searching across all open files.
-- **Rename**: Rename a symbol and all its occurrences. Supports renaming across all open files.
+- **Rename**: Rename a symbol and all its occurrences. Supports renaming across all open files. Now supports **Prepare Rename** to validate the symbol before renaming.
 - **Workspace Symbols**: Search for symbols (Classes, Methods, Variables) across all open files in the workspace.
 - **Code Actions**: Quick fixes for common errors (missing `Then`, `As`, return types), removing unused variables, extracting constants, **Wrap in Try/Catch**, **Encapsulate Field** (Generate Property), and **Add Imports** (for common .NET types).
 - **Signature Help**: Parameter hints for function and subroutine calls.

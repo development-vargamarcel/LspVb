@@ -15,9 +15,14 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
     typeDefinitionProvider: true,
     documentFormattingProvider: true,
     documentRangeFormattingProvider: true,
+    documentOnTypeFormattingProvider: {
+        firstTriggerCharacter: '\n'
+    },
     referencesProvider: true,
     documentHighlightProvider: true,
-    renameProvider: true,
+    renameProvider: {
+        prepareProvider: true
+    },
     codeActionProvider: true,
     signatureHelpProvider: {
         triggerCharacters: ['(', ',']

@@ -1,5 +1,5 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { Position } from 'vscode-languageserver/node';
+import { Position, Range } from 'vscode-languageserver/node';
 import { KEYWORDS } from '../keywords';
 
 /**
@@ -27,6 +27,18 @@ export function stripComment(line: string): string {
  * @returns The word at the position, or an empty string if none found.
  */
 export function getWordAtPosition(document: TextDocument, position: Position): string {
+    const range = getWordRangeAtPosition(document, position);
+    if (!range) return '';
+    return document.getText(range);
+}
+
+/**
+ * Gets the range of the word at the specified position in the document.
+ * @param document The text document.
+ * @param position The position to check.
+ * @returns The range of the word, or null if none found.
+ */
+export function getWordRangeAtPosition(document: TextDocument, position: Position): Range | null {
     const text = document.getText();
     const offset = document.offsetAt(position);
 
@@ -42,10 +54,10 @@ export function getWordAtPosition(document: TextDocument, position: Position): s
     }
 
     if (start === end) {
-        return '';
+        return null;
     }
 
-    return text.substring(start, end);
+    return Range.create(document.positionAt(start), document.positionAt(end));
 }
 
 /**

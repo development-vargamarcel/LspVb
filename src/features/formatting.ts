@@ -1,4 +1,4 @@
-import { TextDocument, TextEdit, FormattingOptions, Range } from 'vscode-languageserver/node';
+import { TextDocument, TextEdit, FormattingOptions, Range, DocumentOnTypeFormattingParams } from 'vscode-languageserver/node';
 import { Logger } from '../utils/logger';
 import { formatLine, formatKeywordCasing } from '../utils/textUtils';
 import {
@@ -16,25 +16,20 @@ import {
     FMT_CASE_REGEX
 } from '../utils/regexes';
 
+interface LineState {
+    level: number;
+    trimmed: string;
+}
+
 /**
- * Handles document formatting requests.
- * Applies indentation rules and keyword casing/spacing.
- *
- * @param document The document to format.
- * @param options Formatting options (tab size, insert spaces).
- * @returns An array of TextEdits to apply the formatting.
+ * Computes the indentation level and trimmed content for each line.
+ * @param lines The lines of the document.
+ * @returns An array of LineState objects.
  */
-export function formatDocument(document: TextDocument, options: FormattingOptions): TextEdit[] {
-    Logger.log('Formatting requested for ' + document.uri);
-    const text = document.getText();
-    const lines = text.split(/\r?\n/);
-    const edits: TextEdit[] = [];
-
-    Logger.debug(`Formatting: Processing ${lines.length} lines.`);
-
+function computeLineStates(lines: string[]): LineState[] {
     let indentLevel = 0;
-    const indentString = options.insertSpaces ? ' '.repeat(options.tabSize) : '\t';
     const selectStack: boolean[] = []; // true = case opened
+    const states: LineState[] = [];
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -47,13 +42,10 @@ export function formatDocument(document: TextDocument, options: FormattingOption
         trimmed = formatLine(trimmed);
 
         if (trimmed === '') {
-            if (line.length > 0) {
-                edits.push({
-                    range: Range.create(i, 0, i, line.length),
-                    newText: ''
-                });
-            }
-            continue;
+             // For empty lines, we keep the current indentLevel as the "level" for this line.
+             // This is important for "On Type Formatting" to indent correctly on new empty lines.
+             states.push({ level: indentLevel, trimmed });
+             continue;
         }
 
         let currentLevel = indentLevel;
@@ -105,14 +97,7 @@ export function formatDocument(document: TextDocument, options: FormattingOption
         if (currentLevel < 0) currentLevel = 0;
         if (indentLevel < 0) indentLevel = 0;
 
-        const desiredIndent = indentString.repeat(currentLevel);
-
-        if (line !== desiredIndent + trimmed) {
-            edits.push({
-                range: Range.create(i, 0, i, line.length),
-                newText: desiredIndent + trimmed
-            });
-        }
+        states.push({ level: currentLevel, trimmed });
 
         // 2. INDENT NEXT LOGIC
 
@@ -130,7 +115,50 @@ export function formatDocument(document: TextDocument, options: FormattingOption
             indentLevel++;
         }
     }
+    return states;
+}
 
+/**
+ * Handles document formatting requests.
+ * Applies indentation rules and keyword casing/spacing.
+ *
+ * @param document The document to format.
+ * @param options Formatting options (tab size, insert spaces).
+ * @returns An array of TextEdits to apply the formatting.
+ */
+export function formatDocument(document: TextDocument, options: FormattingOptions): TextEdit[] {
+    Logger.log('Formatting requested for ' + document.uri);
+    const text = document.getText();
+    const lines = text.split(/\r?\n/);
+    const edits: TextEdit[] = [];
+    const indentString = options.insertSpaces ? ' '.repeat(options.tabSize) : '\t';
+
+    const states = computeLineStates(lines);
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const state = states[i];
+
+        // Standard Formatting: Empty lines are cleared (no whitespace).
+        if (state.trimmed === '') {
+            if (line.length > 0) {
+                edits.push({
+                    range: Range.create(i, 0, i, line.length),
+                    newText: ''
+                });
+            }
+            continue;
+        }
+
+        const desiredIndent = indentString.repeat(state.level);
+
+        if (line !== desiredIndent + state.trimmed) {
+            edits.push({
+                range: Range.create(i, 0, i, line.length),
+                newText: desiredIndent + state.trimmed
+            });
+        }
+    }
     Logger.debug(`Formatting: Generated ${edits.length} edits.`);
     return edits;
 }
@@ -155,17 +183,59 @@ export function formatRange(
     const allEdits = formatDocument(document, options);
 
     const rangeEdits = allEdits.filter((edit) => {
-        // Check if edit overlaps with range
-        // Since we are formatting full lines, we check if edit line is within range lines.
-        // Range start line is inclusive, end line is inclusive (usually).
-        // VS Code usually sends selection range.
-
         const editLine = edit.range.start.line;
         return editLine >= range.start.line && editLine <= range.end.line;
     });
 
     Logger.debug(`Range Formatting: Filtered to ${rangeEdits.length} edits.`);
     return rangeEdits;
+}
+
+/**
+ * Handles on type formatting requests.
+ * Formats the line where the trigger character was typed.
+ *
+ * @param document The document to format.
+ * @param params The formatting parameters.
+ * @returns An array of TextEdits.
+ */
+export function formatOnType(
+    document: TextDocument,
+    params: DocumentOnTypeFormattingParams
+): TextEdit[] {
+    Logger.log(`On Type Formatting requested at ${document.uri} for character '${params.ch}'`);
+    const text = document.getText();
+    const lines = text.split(/\r?\n/);
+    const indentString = params.options.insertSpaces ? ' '.repeat(params.options.tabSize) : '\t';
+
+    const states = computeLineStates(lines);
+    const lineIndex = params.position.line;
+
+    // Safety check
+    if (lineIndex >= lines.length) return [];
+
+    const state = states[lineIndex];
+    const line = lines[lineIndex];
+
+    // For OnType, if line is empty, we DO want to indent it.
+    // The user pressed Enter, so they want cursor at correct indentation.
+
+    const desiredIndent = indentString.repeat(state.level);
+
+    // If line is empty, newText is just indentation.
+    // If line is not empty, it is indentation + trimmed.
+
+    const newText = desiredIndent + state.trimmed;
+
+    // Only return edit if text is different
+    if (line !== newText) {
+        return [{
+            range: Range.create(lineIndex, 0, lineIndex, line.length),
+            newText: newText
+        }];
+    }
+
+    return [];
 }
 
 /**
