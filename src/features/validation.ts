@@ -24,7 +24,9 @@ import {
     VAL_RETURN_REGEX,
     VAL_EXIT_REGEX,
     VAL_THROW_REGEX,
-    VAL_ASSIGNMENT_REGEX
+    VAL_ASSIGNMENT_REGEX,
+    VAL_CATCH_REGEX,
+    VAL_FINALLY_REGEX
 } from '../utils/regexes';
 import { stripComment } from '../utils/textUtils';
 import { Logger } from '../utils/logger';
@@ -64,6 +66,8 @@ interface BlockContext {
     line: number;
     /** Tracks if the block contains any statements or nested blocks. */
     hasContent: boolean;
+    /** Tracks the specific part of the block (e.g. Try, Catch, Else). */
+    part?: string;
 }
 
 /**
@@ -576,7 +580,7 @@ class Validator {
                 VAL_NEXT_REGEX.test(trimmed) ||
                 VAL_LOOP_REGEX.test(trimmed) ||
                 VAL_WEND_REGEX.test(trimmed) ||
-                /^(Else|ElseIf|Case)\b/i.test(trimmed);
+                /^(Else|ElseIf|Case|Catch|Finally)\b/i.test(trimmed);
 
             if (!isControlFlow) {
                 this.addDiagnostic(
@@ -790,8 +794,59 @@ class Validator {
             return true;
         }
 
-        // 2. Check for Start/Opening statements
+        // 2. Check for Intermediate statements (Catch, Finally, Else...)
+        // Note: Else/ElseIf/Case are currently treated as content or not handled structurally in detail,
+        // but for Catch/Finally we want to track them.
+        if (this.handleIntermediate(trimmed, lineIndex)) {
+            return true;
+        }
+
+        // 3. Check for Start/Opening statements
         return this.handleBlockStart(trimmed, lineIndex);
+    }
+
+    /**
+     * Handles intermediate block statements like Catch, Finally.
+     */
+    private handleIntermediate(trimmed: string, lineIndex: number): boolean {
+        if (VAL_CATCH_REGEX.test(trimmed)) {
+            this.checkAndResetBlock('Try', 'Catch', lineIndex);
+            return true;
+        }
+        if (VAL_FINALLY_REGEX.test(trimmed)) {
+            this.checkAndResetBlock('Try', 'Finally', lineIndex);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Checks the current block content and resets for the new part (e.g. Try -> Catch).
+     */
+    private checkAndResetBlock(expectedType: string, newPart: string, lineIndex: number) {
+        if (this.stack.length === 0) return;
+        const last = this.stack[this.stack.length - 1];
+        if (last.type.toLowerCase() === expectedType.toLowerCase()) {
+            if (!last.hasContent) {
+                // Report empty block for the previous part
+                const partName = last.part || last.type;
+                this.addDiagnostic(
+                    last.line, // Or the line where the previous part started?
+                    // Ideally we report on the previous part's start line, but we don't track it easily.
+                    // We report on the current line (Catch) saying previous was empty?
+                    // Or we assume the diagnostic shows "Empty Catch block" at the end of the block.
+                    // Let's report "Empty 'Try' block detected."
+                    `Empty '${partName}' block detected.`,
+                    DiagnosticSeverity.Information // Info or Warning?
+                );
+            }
+            // Reset for new part
+            last.hasContent = false;
+            last.part = newPart;
+            // Update line? No, keep the start of the whole block (Try) or update to Catch line?
+            // If we update line, then checkStack (End Try) will report for "Catch started at line X".
+            last.line = lineIndex;
+        }
     }
 
     /**
@@ -936,11 +991,19 @@ class Validator {
             if (!last.hasContent) {
                 // Only warn for specific block types
                 const type = last.type.toLowerCase();
-                if (['if', 'for', 'while', 'do', 'select'].includes(type)) {
+                if (['if', 'for', 'while', 'do', 'select', 'try'].includes(type)) {
+                    // Use part name if available (e.g. Catch, Finally)
+                    const partName = last.part || last.type;
+
+                    let severity = DiagnosticSeverity.Warning;
+                    if (type === 'try' || partName.toLowerCase() === 'catch' || partName.toLowerCase() === 'finally') {
+                         severity = DiagnosticSeverity.Information;
+                    }
+
                     this.addDiagnostic(
                         last.line,
-                        `Empty '${last.type}' block detected.`,
-                        DiagnosticSeverity.Warning
+                        `Empty '${partName}' block detected.`,
+                        severity
                     );
                 }
             }
@@ -971,6 +1034,8 @@ class Validator {
                 return 'Loop';
             case 'select':
                 return 'End Select';
+            case 'try':
+                return 'End Try';
             case 'sub':
                 return 'End Sub';
             case 'function':
