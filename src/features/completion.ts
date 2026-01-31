@@ -182,30 +182,37 @@ export function onCompletion(
         }
     }
 
-    // Check context (previous word)
-    // Scan backwards from offset, skipping whitespace
+    // Check context
+    // Scan backwards from offset
     let i = offset - 1;
-    // Skip current word being typed
+
+    // 1. Identify current word being typed
+    const currentWordEnd = i + 1;
     while (i >= 0 && /\w/.test(text[i])) {
         i--;
     }
-    // Skip whitespace
+    const currentWord = text.substring(i + 1, currentWordEnd).toLowerCase();
+
+    // 2. Identify previous word (before current word)
+    // Skip whitespace before current word
     while (i >= 0 && /\s/.test(text[i])) {
         i--;
     }
 
-    // Read previous word
-    const end = i + 1;
-    let start = end;
-    while (start > 0 && /\w/.test(text[start - 1])) {
-        start--;
+    const prevWordEnd = i + 1;
+    let prevWordStart = prevWordEnd;
+    while (prevWordStart > 0 && /\w/.test(text[prevWordStart - 1])) {
+        prevWordStart--;
     }
-    const prevWord = text.substring(start, end).toLowerCase();
+    const prevWord = text.substring(prevWordStart, prevWordEnd).toLowerCase();
 
-    Logger.debug(`Completion: Offset=${offset}, PrevWord='${prevWord}'`);
+    Logger.debug(
+        `Completion: Offset=${offset}, CurrentWord='${currentWord}', PrevWord='${prevWord}'`
+    );
 
     const isTypeContext = prevWord === 'as';
-    const isEndContext = prevWord === 'end';
+    // End context is true if previous word is 'end' (e.g. "End |") OR current word is 'end' (e.g. "End|")
+    const isEndContext = prevWord === 'end' || currentWord === 'end';
 
     if (isTypeContext) {
         Logger.debug('Completion: Type context detected (As ...).');

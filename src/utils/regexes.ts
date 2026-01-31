@@ -3,16 +3,17 @@
  * Keeping regexes here ensures consistency across different features.
  */
 
-/** Pattern for matching access modifiers (Public, Private, Friend, Protected). */
-export const MODIFIER_PATTERN = '(?:Public|Private|Friend|Protected)';
+/** Pattern for matching access modifiers (Public, Private, Friend, Protected, etc.). */
+export const MODIFIER_PATTERN =
+    '(?:Public|Private|Friend|Protected|Shared|Static|Overridable|Overrides|MustOverride|NotOverridable|MustInherit|NotInheritable|Partial|ReadOnly|WriteOnly|Shadows|Widening|Narrowing|Custom|Async|Iterator)';
 
 // Patterns
 // Updated BLOCK_START_PATTERN to optionally capture arguments in parens.
-// Groups: 1=Modifier, 2=Type, 3=Name, 4=Args
-const BLOCK_START_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Namespace)\\s+(\\w+)(?:\\s*\\(([^)]*)\\))?`;
+// Groups: 1=Modifier (last one), 2=Type, 3=Name, 4=Args
+const BLOCK_START_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)*(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Namespace)\\s+(\\w+)(?:\\s*\\(([^)]*)\\))?`;
 const DIM_PATTERN = `^\\s*Dim\\s+(\\w+)(?:\\s+As\\s+(\\w+))?`;
-const CONST_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)?Const\\s+(\\w+)(?:\\s+As\\s+(\\w+))?`;
-const FIELD_PATTERN = `^\\s*(${MODIFIER_PATTERN})\\s+(\\w+)(?:\\s+As\\s+(\\w+))?`;
+const CONST_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)*Const\\s+(\\w+)(?:\\s+As\\s+(\\w+))?`;
+const FIELD_PATTERN = `^\\s*(?:(${MODIFIER_PATTERN})\\s+)+(\\w+)(?:\\s+As\\s+(\\w+))?`;
 
 // For Parser (Global + Multiline + Case Insensitive)
 
@@ -37,7 +38,7 @@ export const PARSER_IMPLEMENTS_REGEX = /^\s*Implements\s+([\w.]+)/i;
 
 /** Regex for validating the start of a block. */
 export const VAL_BLOCK_START_REGEX = new RegExp(
-    `^\\s*(?:(?:${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Namespace|Try)\\b`,
+    `^\\s*(?:(?:${MODIFIER_PATTERN})\\s+)*(Sub|Function|Class|Module|Property|Structure|Interface|Enum|Namespace|Try)\\b`,
     'i'
 );
 /** Regex for validating the start of an If statement. */
@@ -65,7 +66,7 @@ export const VAL_WEND_REGEX = /^\s*Wend\b/i;
 export const VAL_DIM_REGEX = /^\s*Dim\s+\w+\s*$/i; // Detect Dim x (without As)
 /** Regex for detecting Const statements, optionally checking for value assignment. */
 export const VAL_CONST_REGEX = new RegExp(
-    `^\\s*(?:(${MODIFIER_PATTERN})\\s+)?Const\\s+(\\w+)(?:\\s+As\\s+(\\w+))?\\s*(?:'.*)?$`,
+    `^\\s*(?:(${MODIFIER_PATTERN})\\s+)*Const\\s+(\\w+)(?:\\s+As\\s+(\\w+))?\\s*(?:'.*)?$`,
     'i'
 );
 /** Regex for detecting Return statements. */
@@ -111,7 +112,7 @@ export const FOLD_REGION_END_REGEX = /^\s*#End\s+Region\b/i;
 
 /** Regex for identifying block starts for folding. */
 export const FOLD_BLOCK_START_REGEX = new RegExp(
-    `^(?:(?:${MODIFIER_PATTERN})\\s+)?(Sub|Function|Class|Module|Structure|Interface|Enum)\\b`,
+    `^(?:(?:${MODIFIER_PATTERN})\\s+)*(Sub|Function|Class|Module|Structure|Interface|Enum)\\b`,
     'i'
 );
 /** Regex for identifying Region start for folding. */

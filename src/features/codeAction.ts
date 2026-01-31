@@ -689,6 +689,135 @@ export function onCodeAction(
         }
     }
 
+    // Check for "Generate ToString", "Equals", "GetHashCode"
+    if (range.start.line === range.end.line) {
+        const symbols = parseDocumentSymbols(document);
+        const container = getSymbolContainingPosition(symbols, range.start);
+
+        if (
+            container &&
+            (container.kind === SymbolKind.Class || container.kind === SymbolKind.Struct)
+        ) {
+            const members =
+                container.children?.filter(
+                    (c) => c.kind === SymbolKind.Field || c.kind === SymbolKind.Property
+                ) || [];
+
+            // Generate ToString
+            const hasToString = container.children?.some(
+                (c) =>
+                    c.name.toLowerCase() === 'tostring' &&
+                    (c.kind === SymbolKind.Method || c.kind === SymbolKind.Function)
+            );
+
+            if (!hasToString && members.length > 0) {
+                // Indentation
+                const containerLineText = document.getText({
+                    start: { line: container.range.start.line, character: 0 },
+                    end: { line: container.range.start.line + 1, character: 0 }
+                });
+                const indentationMatch = containerLineText.match(/^(\s*)/);
+                const indentation = indentationMatch ? indentationMatch[1] : '';
+                const indentUnit = indentation.includes('\t') ? '\t' : '    ';
+                const methodIndent = indentation + indentUnit;
+                const bodyIndent = methodIndent + indentUnit;
+
+                const concatParts = members
+                    .map((m) => `"${m.name}=" & ${m.name}`)
+                    .join(' & ", " & ');
+                const toStringCode = [
+                    '',
+                    `${methodIndent}Public Overrides Function ToString() As String`,
+                    `${bodyIndent}Return "${container.name} [" & ${concatParts} & "]"`,
+                    `${methodIndent}End Function`,
+                    ''
+                ].join('\n');
+
+                // Insert at end of class (before End Class)
+                const insertPos = { line: container.range.end.line, character: 0 };
+
+                actions.push({
+                    title: 'Generate ToString',
+                    kind: CodeActionKind.Refactor,
+                    edit: {
+                        changes: {
+                            [document.uri]: [TextEdit.insert(insertPos, toStringCode)]
+                        }
+                    }
+                });
+                Logger.debug(`CodeAction: Proposed "Generate ToString"`);
+            }
+
+            // Generate Equals and GetHashCode
+            const hasEquals = container.children?.some(
+                (c) =>
+                    c.name.toLowerCase() === 'equals' &&
+                    (c.kind === SymbolKind.Method || c.kind === SymbolKind.Function)
+            );
+            const hasGetHashCode = container.children?.some(
+                (c) =>
+                    c.name.toLowerCase() === 'gethashcode' &&
+                    (c.kind === SymbolKind.Method || c.kind === SymbolKind.Function)
+            );
+
+            if (!hasEquals && !hasGetHashCode && members.length > 0) {
+                // Indentation (reuse)
+                const containerLineText = document.getText({
+                    start: { line: container.range.start.line, character: 0 },
+                    end: { line: container.range.start.line + 1, character: 0 }
+                });
+                const indentationMatch = containerLineText.match(/^(\s*)/);
+                const indentation = indentationMatch ? indentationMatch[1] : '';
+                const indentUnit = indentation.includes('\t') ? '\t' : '    ';
+                const methodIndent = indentation + indentUnit;
+                const bodyIndent = methodIndent + indentUnit;
+
+                // Equals
+                const equalsChecks = members
+                    .map((m) => `Me.${m.name} = other.${m.name}`)
+                    .join(' AndAlso ');
+
+                // GetHashCode
+                // Simple hash combination
+                const hashLines = members.map(
+                    (m) =>
+                        `${bodyIndent}hash = (hash * 23) + (If(Me.${m.name} IsNot Nothing, Me.${m.name}.GetHashCode(), 0))`
+                );
+
+                const code = [
+                    '',
+                    `${methodIndent}Public Overrides Function Equals(obj As Object) As Boolean`,
+                    `${bodyIndent}If obj Is Nothing OrElse Not Me.GetType() Is obj.GetType() Then`,
+                    `${bodyIndent}${indentUnit}Return False`,
+                    `${bodyIndent}End If`,
+                    `${bodyIndent}Dim other = CType(obj, ${container.name})`,
+                    `${bodyIndent}Return ${equalsChecks}`,
+                    `${methodIndent}End Function`,
+                    '',
+                    `${methodIndent}Public Overrides Function GetHashCode() As Integer`,
+                    `${bodyIndent}Dim hash = 17`,
+                    ...hashLines,
+                    `${bodyIndent}Return hash`,
+                    `${methodIndent}End Function`,
+                    ''
+                ].join('\n');
+
+                const insertPos = { line: container.range.end.line, character: 0 };
+
+                actions.push({
+                    title: 'Generate Equals and GetHashCode',
+                    kind: CodeActionKind.Refactor,
+                    edit: {
+                        changes: {
+                            [document.uri]: [TextEdit.insert(insertPos, code)]
+                        }
+                    }
+                });
+                Logger.debug(`CodeAction: Proposed "Generate Equals and GetHashCode"`);
+            }
+        }
+    }
+
     // Check for "Wrap in Try/Catch"
     if (range.start.line !== range.end.line || range.start.character !== range.end.character) {
         // Selection exists

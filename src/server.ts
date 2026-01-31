@@ -159,7 +159,7 @@ documents.onDidChangeContent(
 connection.onDidChangeWatchedFiles(
     safeHandler(_change => {
         // Monitored files have change in VSCode
-        Logger.log('We received an file change event');
+        Logger.log('We received a file change event');
     }, undefined, 'DidChangeWatchedFiles')
 );
 
@@ -346,7 +346,7 @@ connection.onSelectionRanges(
     safeHandler((params: SelectionRangeParams): SelectionRange[] => {
         const document = documents.get(params.textDocument.uri);
         if (!document) return [];
-        // Logging inside handler
+        Logger.log(`Selection Ranges requested for ${params.textDocument.uri}`);
         return onSelectionRanges(params, document);
     }, [], 'SelectionRanges')
 );
