@@ -44,7 +44,8 @@ export function onImplementation(
                 if (
                     sym.kind === SymbolKind.Interface &&
                     sym.detail?.startsWith('Implements ') &&
-                    sym.name.toLowerCase() === word.toLowerCase()
+                    (sym.name.toLowerCase() === word.toLowerCase() ||
+                        sym.name.toLowerCase() === `implements ${word.toLowerCase()}`)
                 ) {
                     // Found an implementation!
                     if (parent) {

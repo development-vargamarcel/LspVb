@@ -48,8 +48,10 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
                 parent.children = [];
             }
             parent.children.push(symbol);
+            Logger.debug(`Parser: Added '${symbol.name}' to '${parent.name}'`);
         } else {
             rootSymbols.push(symbol);
+            Logger.debug(`Parser: Added '${symbol.name}' to root`);
         }
     };
 
@@ -122,36 +124,9 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
                     }
                     if (endIndex !== -1) {
                         argsContent = rawLine.substring(startParenIndex + 1, endIndex);
-                        fullSignature = `${type}(${argsContent})`;
+                        fullSignature = `${type} ${name}(${argsContent})`;
                     }
                 }
-            } else {
-                // No parens, so signature is just "Sub Name"
-                // Or if it is a Property, it might not have parens.
-                // Revert to old behavior for consistency?
-                // Old behavior: `${type}${args}`. Args was empty string if undefined.
-                // So "Sub Foo" -> "Sub" + "" = "Sub".
-                // But wait, old behavior depended on group 4 capturing group.
-                // PARSER_BLOCK_REGEX: `... (Sub|Function...) ... (\w+) ... (?:\((...)\))?`
-                // If group 4 (args) is undefined, args=""
-                // detail = `${type}${args}` -> "Sub" if no args.
-
-                // My manual implementation uses `fullSignature = "${type} ${name}"` initially.
-                // If no parens found, it stays "Sub Name".
-                // Tests expect "Sub" (without name?)
-                // `tests/parser_signature.test.ts`: expected 'Sub' to equal 'Sub'.
-
-                // Let's adjust to match legacy expectations if needed, OR update tests.
-                // Using "Sub Name" is actually better for display.
-                // But test failure 3: expected 'Sub MySub' to equal 'Sub'.
-
-                // If I change it to just `type` if no args:
-                fullSignature = type;
-            }
-
-            // Re-apply args if found
-            if (argsContent) {
-                fullSignature = `${type}(${argsContent})`;
             }
 
             let kind: SymbolKind = SymbolKind.Function;
@@ -246,6 +221,17 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
             }
 
             addSymbol(symbol);
+
+            // Special handling for Interface members (they don't have bodies/End statements)
+            const parent = stack.length > 0 ? stack[stack.length - 1] : null;
+            if (parent && parent.kind === SymbolKind.Interface) {
+                if (/^(Sub|Function|Property|Event)$/i.test(type)) {
+                    // Do not push to stack (it's a declaration only)
+                    symbol.range.end = { line: i, character: rawLine.length };
+                    continue;
+                }
+            }
+
             stack.push(symbol);
             Logger.debug(`Parser: Opened block '${name}' at line ${i}`);
             continue;
@@ -356,7 +342,7 @@ export function parseDocumentSymbols(document: TextDocument): DocumentSymbol[] {
         if (implementsMatch) {
             const name = implementsMatch[1];
             const symbol: DocumentSymbol = {
-                name: name,
+                name: `Implements ${name}`, // Prefix to avoid shadowing the actual Interface definition
                 kind: SymbolKind.Interface,
                 detail: `Implements ${name}`,
                 range: {

@@ -9,7 +9,7 @@ describe('Parser Tests for Signature Help', () => {
         const symbols = parseDocumentSymbols(document);
 
         expect(symbols).to.have.lengthOf(1);
-        expect(symbols[0].detail).to.equal('Sub()');
+        expect(symbols[0].detail).to.equal('Sub MySub()');
     });
 
     it('should capture parameters in detail', () => {
@@ -18,7 +18,7 @@ describe('Parser Tests for Signature Help', () => {
         const symbols = parseDocumentSymbols(document);
 
         expect(symbols).to.have.lengthOf(1);
-        expect(symbols[0].detail).to.equal('Sub(x As Integer)');
+        expect(symbols[0].detail).to.equal('Sub MySub(x As Integer)');
     });
 
     it('should not capture parentheses if none exist', () => {
@@ -27,6 +27,6 @@ describe('Parser Tests for Signature Help', () => {
         const symbols = parseDocumentSymbols(document);
 
         expect(symbols).to.have.lengthOf(1);
-        expect(symbols[0].detail).to.equal('Sub');
+        expect(symbols[0].detail).to.equal('Sub MySub');
     });
 });

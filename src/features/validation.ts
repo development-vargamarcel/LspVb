@@ -101,9 +101,108 @@ export function validateTextDocument(
     const unusedDiagnostics = checkUnusedVariables(textDocument, symbols);
     diagnostics.push(...unusedDiagnostics);
 
+    // Check for interface implementation
+    const interfaceDiagnostics = checkInterfaces(textDocument, symbols, allDocuments);
+    diagnostics.push(...interfaceDiagnostics);
+
     Logger.log(
         `Validation finished for ${textDocument.uri}. Found ${diagnostics.length} diagnostics.`
     );
+    return diagnostics;
+}
+
+/**
+ * Checks for missing interface implementations.
+ * @param document The text document.
+ * @param symbols The document symbols.
+ * @param allDocuments All open documents.
+ * @returns A list of diagnostics.
+ */
+function checkInterfaces(
+    document: TextDocument,
+    symbols: DocumentSymbol[],
+    allDocuments: TextDocument[]
+): Diagnostic[] {
+    const diagnostics: Diagnostic[] = [];
+
+    const traverse = (syms: DocumentSymbol[]) => {
+        for (const sym of syms) {
+            if (sym.kind === SymbolKind.Class || sym.kind === SymbolKind.Struct) {
+                // Check for Implements
+                const implementsSyms = sym.children?.filter((c) => c.kind === SymbolKind.Interface);
+
+                if (implementsSyms && implementsSyms.length > 0) {
+                    for (const impl of implementsSyms) {
+                        const interfaceName = impl.name.replace(/^Implements\s+/, '');
+                        const position = impl.range.start;
+                        Logger.debug(`Checking interface '${interfaceName}' for class '${sym.name}'`);
+
+                        // Resolve interface
+                        let interfaceSym = findSymbolInScope(symbols, interfaceName, position);
+
+                        if (!interfaceSym) {
+                            // Check other docs
+                            for (const doc of allDocuments) {
+                                if (doc.uri === document.uri) continue;
+                                const globalSyms = parseDocumentSymbols(doc);
+                                interfaceSym = findGlobalSymbol(globalSyms, interfaceName);
+                                if (interfaceSym) break;
+                            }
+                        }
+
+                        if (!interfaceSym) {
+                            diagnostics.push({
+                                severity: DiagnosticSeverity.Error,
+                                range: impl.selectionRange,
+                                message: `Interface '${interfaceName}' not defined.`,
+                                source: 'SimpleVB'
+                            });
+                            continue;
+                        }
+
+                        // Check members
+                        if (interfaceSym.children) {
+                            Logger.debug(
+                                `Interface '${interfaceName}' has ${interfaceSym.children.length} members.`
+                            );
+                            for (const member of interfaceSym.children) {
+                                if (
+                                    member.kind === SymbolKind.Method ||
+                                    member.kind === SymbolKind.Property ||
+                                    member.kind === SymbolKind.Function
+                                ) {
+                                    const classHasMember = sym.children?.some(
+                                        (c) => c.name.toLowerCase() === member.name.toLowerCase()
+                                    );
+
+                                    if (!classHasMember) {
+                                        diagnostics.push({
+                                            severity: DiagnosticSeverity.Error,
+                                            range: sym.selectionRange,
+                                            message: `Class '${sym.name}' must implement member '${member.name}' of interface '${interfaceName}'.`,
+                                            source: 'SimpleVB',
+                                            data: {
+                                                missingMember: member.name,
+                                                interfaceName: interfaceName,
+                                                memberKind: member.kind,
+                                                memberDetail: member.detail
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (sym.children) {
+                traverse(sym.children);
+            }
+        }
+    };
+
+    traverse(symbols);
     return diagnostics;
 }
 
@@ -952,6 +1051,16 @@ class Validator {
      * @param line The line number.
      */
     private pushStack(type: string, line: number) {
+        // If parent is Interface, do not push Sub/Function/Property to stack
+        if (this.stack.length > 0) {
+            const parent = this.stack[this.stack.length - 1];
+            if (parent.type.toLowerCase() === 'interface') {
+                if (/^(Sub|Function|Property|Event)$/i.test(type)) {
+                    return;
+                }
+            }
+        }
+
         Logger.debug(`Validator: Pushing stack '${type}' at line ${line}`);
         // Mark parent as having content (a nested block counts as content)
         this.markCurrentContent();
@@ -995,9 +1104,13 @@ class Validator {
                     // Use part name if available (e.g. Catch, Finally)
                     const partName = last.part || last.type;
 
-                    let severity = DiagnosticSeverity.Warning;
-                    if (type === 'try' || partName.toLowerCase() === 'catch' || partName.toLowerCase() === 'finally') {
-                         severity = DiagnosticSeverity.Information;
+                    let severity: DiagnosticSeverity = DiagnosticSeverity.Warning;
+                    if (
+                        type === 'try' ||
+                        partName.toLowerCase() === 'catch' ||
+                        partName.toLowerCase() === 'finally'
+                    ) {
+                        severity = DiagnosticSeverity.Information;
                     }
 
                     this.addDiagnostic(
