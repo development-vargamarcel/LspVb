@@ -334,6 +334,92 @@ export function onCodeAction(
                 actions.push(action);
                 Logger.debug(`CodeAction: Proposed "Add '${closeStmt}'" at line ${insertPos.line}`);
             }
+        } else if (diagnostic.message.includes('must implement member')) {
+            const data = diagnostic.data as any;
+            if (data && data.missingMember && data.interfaceName) {
+                const memberName = data.missingMember;
+                const interfaceName = data.interfaceName;
+                const kind = data.memberKind;
+                const detail = data.memberDetail;
+
+                // Parse document symbols to find the class end position
+                const symbols = parseDocumentSymbols(document);
+                const classSymbol = getSymbolContainingPosition(symbols, diagnostic.range.start);
+
+                if (classSymbol) {
+                    // Determine indentation
+                    const classLine = document.getText({
+                        start: { line: classSymbol.range.start.line, character: 0 },
+                        end: { line: classSymbol.range.start.line + 1, character: 0 }
+                    });
+                    const matchIndent = classLine.match(/^(\s*)/);
+                    const classIndent = matchIndent ? matchIndent[1] : '';
+                    const memberIndent = classIndent + (classIndent.includes('\t') ? '\t' : '    ');
+                    const bodyIndent = memberIndent + (classIndent.includes('\t') ? '\t' : '    ');
+
+                    let stub = '';
+
+                    if (kind === SymbolKind.Method) {
+                        let decl = detail || `Sub ${memberName}()`;
+                        // Ensure decl starts with Sub/Function
+                        if (!/^(Sub|Function)/i.test(decl)) decl = `Sub ${memberName}()`;
+
+                        stub = [
+                            '',
+                            `${memberIndent}Public ${decl} Implements ${interfaceName}.${memberName}`,
+                            `${bodyIndent}Throw New NotImplementedException()`,
+                            `${memberIndent}End Sub`,
+                            ''
+                        ].join('\n');
+                    } else if (kind === SymbolKind.Function) {
+                        let decl = detail || `Function ${memberName}() As Object`;
+                        if (!/^(Sub|Function)/i.test(decl)) decl = `Function ${memberName}() As Object`;
+
+                        stub = [
+                            '',
+                            `${memberIndent}Public ${decl} Implements ${interfaceName}.${memberName}`,
+                            `${bodyIndent}Throw New NotImplementedException()`,
+                            `${bodyIndent}Return Nothing`,
+                            `${memberIndent}End Function`,
+                            ''
+                        ].join('\n');
+                    } else if (kind === SymbolKind.Property) {
+                        let decl = detail || `Property ${memberName}() As Object`;
+                        if (!/^Property/i.test(decl)) decl = `Property ${memberName}() As Object`;
+
+                        stub = [
+                            '',
+                            `${memberIndent}Public ${decl} Implements ${interfaceName}.${memberName}`,
+                            `${bodyIndent}Get`,
+                            `${bodyIndent}    Throw New NotImplementedException()`,
+                            `${bodyIndent}End Get`,
+                            `${bodyIndent}Set(value)`,
+                            `${bodyIndent}    Throw New NotImplementedException()`,
+                            `${bodyIndent}End Set`,
+                            `${memberIndent}End Property`,
+                            ''
+                        ].join('\n');
+                    }
+
+                    if (stub) {
+                        // Insert at the end of the class (before End Class)
+                        const insertPos = { line: classSymbol.range.end.line, character: 0 };
+
+                        const action: CodeAction = {
+                            title: `Implement '${memberName}'`,
+                            kind: CodeActionKind.QuickFix,
+                            diagnostics: [diagnostic],
+                            edit: {
+                                changes: {
+                                    [document.uri]: [TextEdit.insert(insertPos, stub)]
+                                }
+                            }
+                        };
+                        actions.push(action);
+                        Logger.debug(`CodeAction: Proposed "Implement Interface Member" for ${memberName}`);
+                    }
+                }
+            }
         } else if (diagnostic.message.includes('is declared but never used')) {
             // Unused variable diagnostic
             // Range is the selectionRange (just the name)

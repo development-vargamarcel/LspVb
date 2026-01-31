@@ -12,7 +12,7 @@ describe('Parser Complex Signatures', () => {
         expect(symbols).to.have.lengthOf(1);
         const sub = symbols[0];
         expect(sub.name).to.equal('MySub');
-        expect(sub.detail).to.equal('Sub(x As List(Of String), y As Integer)');
+        expect(sub.detail).to.equal('Sub MySub(x As List(Of String), y As Integer)');
 
         // Children should be x and y
         expect(sub.children).to.have.lengthOf(2);
@@ -40,8 +40,8 @@ describe('Parser Complex Signatures', () => {
         expect(func.name).to.equal('Matrix');
         // Our parser constructs detail as `${type}(${argsContent})`.
         // It does NOT capture return type "As Integer" at end of line or "Name" inside detail (based on my previous fix to satisfy legacy tests).
-        // So expected is "Function(a(,) As Integer)"
-        expect(func.detail).to.equal('Function(a(,) As Integer)');
+        // So expected is "Function Matrix(a(,) As Integer)"
+        expect(func.detail).to.equal('Function Matrix(a(,) As Integer)');
 
         expect(func.children).to.have.lengthOf(1);
         expect(func.children![0].name).to.equal('a');
