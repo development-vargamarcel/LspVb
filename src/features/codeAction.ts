@@ -752,6 +752,92 @@ export function onCodeAction(
         }
     }
 
+    // Check for SourceOrganizeImports
+    // We also provide it if no specific kind is requested, or if Source is requested
+    if (
+        !params.context.only ||
+        params.context.only.includes(CodeActionKind.SourceOrganizeImports) ||
+        params.context.only.includes(CodeActionKind.Source)
+    ) {
+        const text = document.getText();
+        const lines = text.split(/\r?\n/);
+        const importGroups: { start: number; end: number; lines: string[] }[] = [];
+
+        let currentGroup: { start: number; end: number; lines: string[] } | null = null;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+            if (trimmed.toLowerCase().startsWith('imports ')) {
+                if (!currentGroup) {
+                    currentGroup = { start: i, end: i, lines: [line] };
+                } else {
+                    currentGroup.end = i;
+                    currentGroup.lines.push(line);
+                }
+            } else {
+                if (currentGroup) {
+                    importGroups.push(currentGroup);
+                    currentGroup = null;
+                }
+            }
+        }
+        if (currentGroup) {
+            importGroups.push(currentGroup);
+        }
+
+        if (importGroups.length > 0) {
+            const edits: TextEdit[] = [];
+            for (const group of importGroups) {
+                const originalText = group.lines.join('\n');
+
+                // Sort lines
+                const sorted = [...group.lines].sort((a, b) => {
+                    const impA = a.trim().substring(8).trim(); // Remove "Imports "
+                    const impB = b.trim().substring(8).trim();
+                    // System.* first?
+                    const isSystemA = impA.toLowerCase().startsWith('system');
+                    const isSystemB = impB.toLowerCase().startsWith('system');
+
+                    if (isSystemA && !isSystemB) return -1;
+                    if (!isSystemA && isSystemB) return 1;
+
+                    return impA.localeCompare(impB);
+                });
+
+                const newText = sorted.join('\n');
+
+                if (newText !== originalText) {
+                    // Replace range
+                    // Use lines[group.end].length for end character
+                    edits.push(
+                        TextEdit.replace(
+                            {
+                                start: { line: group.start, character: 0 },
+                                end: { line: group.end, character: lines[group.end].length }
+                            },
+                            newText
+                        )
+                    );
+                }
+            }
+
+            if (edits.length > 0) {
+                const action: CodeAction = {
+                    title: 'Sort Imports',
+                    kind: CodeActionKind.SourceOrganizeImports,
+                    edit: {
+                        changes: {
+                            [document.uri]: edits
+                        }
+                    }
+                };
+                actions.push(action);
+                Logger.debug(`CodeAction: Proposed "Sort Imports"`);
+            }
+        }
+    }
+
     Logger.debug(`CodeAction: Returning ${actions.length} actions.`);
     return actions;
 }

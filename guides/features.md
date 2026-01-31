@@ -101,6 +101,7 @@ Provides quick fixes for common errors:
 - **Remove Unused Variable**: Safely removes unused local variables, including handling multiple declarations (e.g., `Dim x, y`).
 - **Extract to Constant**: Extracts a magic number to a `Const` definition.
 - **Wrap in Try/Catch**: Wraps the selected lines of code in a `Try...Catch...End Try` block, preserving indentation.
+- **Sort Imports**: Organizes `Imports` statements alphabetically. Available as a "Sort Imports" Code Action or via "Organize Imports" command.
 
 ## 11. Signature Help
 Shows parameter information when typing a function call.
@@ -128,3 +129,9 @@ Displays the number of references for classes, methods, and properties above the
 Allows intelligently expanding the selection based on the code structure.
 - **Levels**: Word → Line → Code Block (e.g., contents of an `If`) → Parent Block (e.g., the `If` itself) → ... → Root.
 - **Usage**: Use the standard editor command for expanding selection (e.g., `Shift+Alt+Right` in VS Code).
+
+## 17. Color Provider
+Shows a color preview next to color definitions and supports modifying them via the editor's color picker.
+- **Supported Formats**:
+    - Named Colors: `Color.Red`, `Color.Blue`, etc.
+    - Custom Colors: `Color.FromArgb(r, g, b)` and `Color.FromArgb(a, r, g, b)`.
