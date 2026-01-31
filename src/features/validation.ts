@@ -82,6 +82,9 @@ export function validateTextDocument(
     allDocuments: TextDocument[] = [textDocument]
 ): Diagnostic[] {
     Logger.log(`Starting validation for ${textDocument.uri}`);
+    if (allDocuments.length > 1) {
+        Logger.debug(`Validation context includes ${allDocuments.length} documents.`);
+    }
     // Check for duplicate declarations using parsed symbols
     const symbols = parseDocumentSymbols(textDocument);
 

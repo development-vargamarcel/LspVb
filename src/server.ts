@@ -148,6 +148,12 @@ connection.onInitialized(
     }, undefined, 'Initialized')
 );
 
+connection.onShutdown(
+    safeHandler(() => {
+        Logger.log('Server shutting down.');
+    }, undefined, 'Shutdown')
+);
+
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(

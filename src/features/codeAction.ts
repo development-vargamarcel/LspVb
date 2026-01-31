@@ -11,6 +11,7 @@ import {
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Logger } from '../utils/logger';
 import { parseDocumentSymbols, getSymbolContainingPosition } from '../utils/parser';
+import { stripComment } from '../utils/textUtils';
 
 /**
  * Handles code action requests.
@@ -881,6 +882,164 @@ export function onCodeAction(
         }
     }
 
+    // Check for "Invert If"
+    // Trigger if cursor is on "If" or "Else" line
+    if (range.start.line === range.end.line) {
+        const lineText = document.getText({
+            start: { line: range.start.line, character: 0 },
+            end: { line: range.start.line + 1, character: 0 }
+        });
+        const trimmed = lineText.trim();
+        const lower = trimmed.toLowerCase();
+
+        // Check if cursor is on If or Else line
+        if (
+            (lower.startsWith('if ') && lower.includes(' then')) ||
+            lower === 'else' ||
+            lower.startsWith('else ') // check comment
+        ) {
+            // Locate the full block
+            // We need to scan up/down to find If/Else/End If
+            // This relies on indentation or just keyword matching.
+            // Using parseDocumentSymbols is safer to get the range of the whole If block.
+            const symbols = parseDocumentSymbols(document);
+            const ifSymbol = getSymbolContainingPosition(symbols, range.start);
+
+            if (ifSymbol && ifSymbol.name === 'If') {
+                // Now scan the lines within the symbol range to find parts
+                const startLine = ifSymbol.range.start.line;
+                const endLine = ifSymbol.range.end.line;
+
+                let elseLineIndex = -1;
+                let hasElseIf = false;
+                let thenLineIndex = -1;
+
+                // Find "Then" and "Else"
+                for (let i = startLine; i <= endLine; i++) {
+                    const line = document.getText({
+                        start: { line: i, character: 0 },
+                        end: { line: i + 1, character: 0 }
+                    });
+                    const lTrim = line.trim();
+                    const lLow = lTrim.toLowerCase();
+
+                    if (i === startLine) {
+                        // Extract condition
+                        // "If condition Then"
+                        // Handle "If condition Then 'comment"
+                    }
+
+                    if (lLow.startsWith('elseif')) {
+                        hasElseIf = true;
+                        break;
+                    }
+
+                    if (lLow.startsWith('else') && !lLow.startsWith('elseif')) {
+                        elseLineIndex = i;
+                    }
+                }
+
+                if (!hasElseIf) {
+                    // Extract parts
+                    const ifLine = document.getText({
+                        start: { line: startLine, character: 0 },
+                        end: { line: startLine + 1, character: 0 }
+                    });
+                    // Strip comment to avoid regex matching "Then" inside comment
+                    const ifLineClean = stripComment(ifLine);
+                    const ifMatch = /^(\s*)If\s+(.+)\s+Then/i.exec(ifLineClean);
+
+                    if (ifMatch) {
+                        const indentation = ifMatch[1];
+                        const condition = ifMatch[2].trim();
+
+                        // Get Then Block
+                        let thenBlockStart = startLine + 1;
+                        let thenBlockEnd = elseLineIndex !== -1 ? elseLineIndex : endLine; // Exclusive of Else/End If line?
+                        // Actually endLine is the line OF "End If".
+                        // elseLineIndex is the line OF "Else".
+
+                        // Extract text
+                        let thenBlock = '';
+                        if (thenBlockStart < thenBlockEnd) {
+                            thenBlock = document.getText({
+                                start: { line: thenBlockStart, character: 0 },
+                                end: { line: thenBlockEnd, character: 0 }
+                            });
+                        }
+
+                        // Get Else Block
+                        let elseBlock = '';
+                        if (elseLineIndex !== -1) {
+                            const elseBlockStart = elseLineIndex + 1;
+                            const elseBlockEnd = endLine;
+                            if (elseBlockStart < elseBlockEnd) {
+                                elseBlock = document.getText({
+                                    start: { line: elseBlockStart, character: 0 },
+                                    end: { line: elseBlockEnd, character: 0 }
+                                });
+                            }
+                        }
+
+                        // Negate condition
+                        const negatedCondition = negateCondition(condition);
+
+                        // Construct new text
+                        // Trim blocks to check if they have content?
+                        // But usually we want to preserve internal formatting.
+                        // We just need to ensure we don't add extra newlines around Else.
+                        // elseBlock and thenBlock likely contain trailing newlines if obtained via getText with full lines.
+
+                        // Remove trailing newlines from blocks if we are re-assembling?
+                        // getText(range) includes newlines.
+
+                        const newText = [
+                            `${indentation}If ${negatedCondition} Then`,
+                            elseBlock.trimEnd(),
+                            `${indentation}Else`,
+                            thenBlock.trimEnd(),
+                            `${indentation}End If`
+                        ].join('\n') + '\n';
+
+                        // Handle empty Else block case (Invert If with no Else -> If Not cond Then ... End If)
+                        // If originally no Else, then elseBlock is empty.
+                        // Result: If Not cond Then [empty] Else [original then] End If.
+                        // This is technically correct invert, but maybe we want to remove empty Else?
+                        // "Invert If" implies swapping.
+                        // Users often use it to introduce a guard clause or handle the negative case first.
+
+                        // If the resulting 'Then' block is empty (original Else was empty/non-existent),
+                        // we might want to keep it empty or put a comment?
+                        // Or just let it be.
+
+                        // Replace the whole block
+                        const edit: WorkspaceEdit = {
+                            changes: {
+                                [document.uri]: [
+                                    TextEdit.replace(
+                                        {
+                                            start: { line: startLine, character: 0 },
+                                            end: { line: endLine + 1, character: 0 }
+                                        },
+                                        newText
+                                    )
+                                ]
+                            }
+                        };
+
+                        const action: CodeAction = {
+                            title: 'Invert If',
+                            kind: CodeActionKind.RefactorRewrite,
+                            edit: edit
+                        };
+                        actions.push(action);
+                        Logger.debug(`CodeAction: Proposed "Invert If"`);
+                    }
+                }
+            }
+        }
+    }
+
     // Check for SourceOrganizeImports
     // We also provide it if no specific kind is requested, or if Source is requested
     if (
@@ -1002,4 +1161,77 @@ function getClosingStatement(type: string): string {
         default:
             return 'End ' + type;
     }
+}
+
+/**
+ * Negates a VB conditional expression.
+ *
+ * @param condition The condition string.
+ * @returns The negated condition.
+ */
+function negateCondition(condition: string): string {
+    const trimmed = condition.trim();
+    const lower = trimmed.toLowerCase();
+
+    // Helper to check for balanced outer parentheses
+    const hasBalancedOuterParens = (str: string): boolean => {
+        if (!str.startsWith('(') || !str.endsWith(')')) return false;
+        let depth = 0;
+        for (let i = 0; i < str.length; i++) {
+            if (str[i] === '(') depth++;
+            else if (str[i] === ')') depth--;
+            if (depth === 0 && i < str.length - 1) return false;
+        }
+        return depth === 0;
+    };
+
+    // Simplify common cases: Not (...)
+    if (lower.startsWith('not ') && lower.indexOf('(') === 4) {
+        // Not (...) -> Remove Not and outer parens?
+        const inner = trimmed.substring(4).trim();
+        // Verify inner has balanced outer parens (e.g. "Not (A) Or (B)" -> inner "(A) Or (B)" is NOT balanced)
+        if (hasBalancedOuterParens(inner)) {
+            return inner.substring(1, inner.length - 1);
+        }
+    }
+
+    // If condition contains logical operators (And, Or, Xor, AndAlso, OrElse),
+    // simply wrap in Not(...) to be safe.
+    if (
+        /\b(and|or|xor|andalso|orelse)\b/i.test(trimmed)
+    ) {
+         if (hasBalancedOuterParens(trimmed)) {
+            return `Not ${trimmed}`;
+        }
+        return `Not (${trimmed})`;
+    }
+
+    // Comparison operators
+    // Be careful with strings and complex expressions.
+    // Simple check: single operator
+    const ops = [
+        { op: '=', neg: '<>' },
+        { op: '<>', neg: '=' },
+        { op: '>', neg: '<=' },
+        { op: '<', neg: '>=' },
+        { op: '>=', neg: '<' },
+        { op: '<=', neg: '>' },
+        { op: ' Is ', neg: ' IsNot ' },
+        { op: ' IsNot ', neg: ' Is ' }
+    ];
+
+    for (const { op, neg } of ops) {
+        // Use split to count occurrences. If > 2 parts, it means 1 operator.
+        // Also check if inside quotes.
+        const parts = trimmed.split(op);
+        if (parts.length === 2) {
+            return `${parts[0].trim()} ${neg.trim()} ${parts[1].trim()}`;
+        }
+    }
+
+    // Default: Wrap in Not (...)
+    if (hasBalancedOuterParens(trimmed)) {
+        return `Not ${trimmed}`;
+    }
+    return `Not (${trimmed})`;
 }
