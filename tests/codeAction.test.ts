@@ -268,4 +268,65 @@ End Sub
         expect(replaceEdit).to.exist;
         expect(replaceEdit!.range).to.deep.equal(range);
     });
+
+    it('should provide sort imports action', () => {
+        const text = `
+Imports System.IO
+Imports System.Collections.Generic
+Imports System
+Imports MyLib
+`;
+        // Trim first newline
+        const content = text.trim();
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, content);
+
+        const params: any = {
+            textDocument: { uri: document.uri },
+            range: Range.create(0, 0, 0, 0),
+            context: {
+                diagnostics: [],
+                only: [CodeActionKind.SourceOrganizeImports]
+            }
+        };
+
+        const actions = onCodeAction(params, document);
+
+        const sortAction = actions.find((a: any) => a.title === 'Sort Imports');
+        expect(sortAction).to.exist;
+        expect((sortAction as CodeAction).kind).to.equal(CodeActionKind.SourceOrganizeImports);
+
+        const edits = (sortAction as CodeAction).edit!.changes![document.uri];
+        expect(edits).to.have.lengthOf(1);
+
+        const newText = edits[0].newText;
+        const expected = [
+            'Imports System',
+            'Imports System.Collections.Generic',
+            'Imports System.IO',
+            'Imports MyLib'
+        ].join('\n');
+
+        expect(newText).to.equal(expected);
+    });
+
+    it('should prioritize System imports', () => {
+        const text = `Imports Zebra\nImports System.Text`;
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+
+        const params: any = {
+            textDocument: { uri: document.uri },
+            range: Range.create(0, 0, 0, 0),
+            context: {
+                diagnostics: [],
+                only: [CodeActionKind.SourceOrganizeImports]
+            }
+        };
+
+        const actions = onCodeAction(params, document);
+        const sortAction = actions.find((a: any) => a.title === 'Sort Imports');
+        expect(sortAction).to.exist;
+
+        const newText = (sortAction as CodeAction).edit!.changes![document.uri][0].newText;
+        expect(newText).to.equal('Imports System.Text\nImports Zebra');
+    });
 });

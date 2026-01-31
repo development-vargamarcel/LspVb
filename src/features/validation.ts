@@ -458,6 +458,7 @@ class Validator {
      * @param rawLine The original line.
      */
     private checkUnknownTypes(trimmed: string, lineIndex: number, rawLine: string) {
+        Logger.debug(`Validator: Checking unknown types for line ${lineIndex}`);
         // Regex to match "As Type"
         // Need to handle "Dim x As Type", "Function f() As Type", "Property p As Type"
         // Also arrays "As Type()" or generics "As List(Of T)" (simple check for base type)
@@ -603,6 +604,7 @@ class Validator {
      * @param lineIndex The line number.
      */
     private checkMagicNumbers(trimmed: string, lineIndex: number) {
+        Logger.debug(`Validator: Checking magic numbers for line ${lineIndex}`);
         // Ignore Const definitions, Dim initializations (common for testing/prototyping?), and array indexing?
         // To reduce noise in tests and prototype code, maybe we should be less strict?
         // Or updated tests.

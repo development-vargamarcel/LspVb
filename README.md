@@ -25,7 +25,7 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Find References**: Find all occurrences of a symbol. Supports searching across all open files.
 - **Rename**: Rename a symbol and all its occurrences. Supports renaming across all open files. Now supports **Prepare Rename** to validate the symbol before renaming.
 - **Workspace Symbols**: Search for symbols (Classes, Methods, Variables) across all open files in the workspace.
-- **Code Actions**: Quick fixes for common errors (missing `Then`, `As`, return types), removing unused variables, extracting constants, **Wrap in Try/Catch**, **Encapsulate Field** (Generate Property), **Generate Constructor** (from Private fields), **Implement Interface** (Generate stubs for missing interface members), and **Add Imports** (for common .NET types).
+- **Code Actions**: Quick fixes for common errors (missing `Then`, `As`, return types), removing unused variables, extracting constants, **Wrap in Try/Catch**, **Encapsulate Field** (Generate Property), **Generate Constructor** (from Private fields), **Implement Interface** (Generate stubs for missing interface members), and **Add Imports** (for common .NET types). Also includes **Sort Imports** (Organize Imports).
 - **Signature Help**: Parameter hints for function and subroutine calls.
 - **Semantic Tokens**: Syntax highlighting for different symbol types (classes, variables, etc.).
 - **Document Highlight**: Highlights all occurrences of a symbol in the editor.
@@ -33,6 +33,7 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Code Lens**: Displays reference counts for classes and methods (calculated across all open files).
 - **Smart Selection Range**: Expand selection intelligently from Word → Line → Block → Parent Block using standard editor commands (e.g., `Shift+Alt+Right` in VS Code).
 - **Call Hierarchy**: Browse incoming and outgoing calls for functions, methods, properties, and constructors.
+- **Color Provider**: Visualizes colors (e.g., `Color.Red`, `Color.FromArgb`) and supports color picker interactions.
 
 ## Architecture
 

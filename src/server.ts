@@ -58,13 +58,18 @@ import {
     CallHierarchyOutgoingCallsParams,
     CallHierarchyItem,
     CallHierarchyIncomingCall,
-    CallHierarchyOutgoingCall
+    CallHierarchyOutgoingCall,
+    ColorInformation,
+    DocumentColorParams,
+    ColorPresentation,
+    ColorPresentationParams
 } from 'vscode-languageserver/node';
 
 import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
 
+import { onDocumentColor, onColorPresentation } from './features/colorProvider';
 import { onPrepareCallHierarchy, onIncomingCalls, onOutgoingCalls } from './features/callHierarchy';
 import { onCompletion, onCompletionResolve } from './features/completion';
 import { onHover } from './features/hover';
@@ -415,6 +420,26 @@ connection.onDocumentOnTypeFormatting(
         if (!document) return [];
         return formatOnType(document, params);
     }, [], 'OnTypeFormatting')
+);
+
+// This handler provides document colors
+connection.onDocumentColor(
+    safeHandler((params: DocumentColorParams): ColorInformation[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        Logger.log(`Document Color requested for ${params.textDocument.uri}`);
+        return onDocumentColor(params, document);
+    }, [], 'DocumentColor')
+);
+
+// This handler provides color presentations
+connection.onColorPresentation(
+    safeHandler((params: ColorPresentationParams): ColorPresentation[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        Logger.log(`Color Presentation requested for ${params.textDocument.uri}`);
+        return onColorPresentation(params, document);
+    }, [], 'ColorPresentation')
 );
 
 // Make the text document manager listen on the connection
