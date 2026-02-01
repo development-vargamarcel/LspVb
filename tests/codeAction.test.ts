@@ -329,4 +329,29 @@ Imports MyLib
         const newText = (sortAction as CodeAction).edit!.changes![document.uri][0].newText;
         expect(newText).to.equal('Imports System.Text\nImports Zebra');
     });
+
+    it('should provide wrap in region action', () => {
+        const text = '    Line1\n    Line2';
+        const document = TextDocument.create('file:///test.vb', 'vb', 1, text);
+        const range = Range.create(0, 0, 1, 9); // Select both lines
+
+        const params: any = {
+            textDocument: { uri: document.uri },
+            range: range,
+            context: { diagnostics: [] }
+        };
+
+        const actions = onCodeAction(params, document);
+
+        const action = actions.find((a: any) => a.title === 'Wrap in #Region') as CodeAction;
+        expect(action).to.exist;
+
+        const changes = action.edit!.changes![document.uri];
+        expect(changes).to.have.lengthOf(1);
+
+        const newText = changes[0].newText;
+        expect(newText).to.contain('#Region "MyRegion"');
+        expect(newText).to.contain('    Line1');
+        expect(newText).to.contain('#End Region');
+    });
 });

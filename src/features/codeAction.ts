@@ -819,6 +819,56 @@ export function onCodeAction(
         }
     }
 
+    // Check for "Wrap in #Region"
+    if (range.start.line !== range.end.line || range.start.character !== range.end.character) {
+        // Selection exists
+        const startLine = range.start.line;
+        let endLine = range.end.line;
+
+        // Adjust end line if selection ends at column 0 of next line
+        if (range.end.character === 0 && range.end.line > range.start.line) {
+            endLine = range.end.line - 1;
+        }
+
+        const expandedRange = {
+            start: { line: startLine, character: 0 },
+            end: { line: endLine + 1, character: 0 }
+        };
+
+        const textToWrap = document.getText(expandedRange);
+
+        if (textToWrap.trim().length > 0) {
+            // Get indentation from the first line
+            const firstLine = document.getText({
+                start: { line: startLine, character: 0 },
+                end: { line: startLine + 1, character: 0 }
+            });
+            const indentationMatch = firstLine.match(/^(\s*)/);
+            const indentation = indentationMatch ? indentationMatch[1] : '';
+
+            // We wrap the text with #Region and #End Region
+            // Note: We use the same indentation for directives as the code
+            const wrappedText = [
+                `${indentation}#Region "MyRegion"`,
+                textToWrap.trimEnd(), // Keep original content
+                `${indentation}#End Region`,
+                ''
+            ].join('\n');
+
+            const action: CodeAction = {
+                title: 'Wrap in #Region',
+                kind: CodeActionKind.RefactorRewrite,
+                edit: {
+                    changes: {
+                        [document.uri]: [TextEdit.replace(expandedRange, wrappedText)]
+                    }
+                }
+            };
+            actions.push(action);
+            Logger.debug(`CodeAction: Proposed "Wrap in #Region" for lines ${startLine}-${endLine}`);
+        }
+    }
+
     // Check for "Wrap in Try/Catch"
     if (range.start.line !== range.end.line || range.start.character !== range.end.character) {
         // Selection exists

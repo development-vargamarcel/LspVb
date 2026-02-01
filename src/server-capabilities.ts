@@ -48,6 +48,9 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
     selectionRangeProvider: true,
     callHierarchyProvider: true,
     colorProvider: true,
+    documentLinkProvider: {
+        resolveProvider: false
+    },
     workspace: {
         workspaceFolders: {
             supported: true

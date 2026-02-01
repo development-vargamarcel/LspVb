@@ -718,6 +718,7 @@ class Validator {
         // Check for "If ... " without "Then"
         if (VAL_IF_LINE_REGEX.test(rawLine)) {
             if (!VAL_THEN_REGEX.test(rawLine) && !trimmed.endsWith('_')) {
+                Logger.debug(`Validator: Missing 'Then' at line ${lineIndex}`);
                 this.addDiagnostic(
                     lineIndex,
                     "Missing 'Then' in If statement.",
@@ -728,6 +729,7 @@ class Validator {
 
         // Check for "Dim x" without "As"
         if (VAL_DIM_REGEX.test(trimmed)) {
+            Logger.debug(`Validator: Variable without type at line ${lineIndex}`);
             this.addDiagnostic(
                 lineIndex,
                 'Variable declaration without type (As ...).',
@@ -737,6 +739,7 @@ class Validator {
 
         // Check for Const without value
         if (VAL_CONST_REGEX.test(rawLine) && !rawLine.includes('=')) {
+            Logger.debug(`Validator: Const without value at line ${lineIndex}`);
             this.addDiagnostic(
                 lineIndex,
                 'Const declaration requires a value (e.g. Const x = 1).',
