@@ -62,7 +62,9 @@ import {
     ColorInformation,
     DocumentColorParams,
     ColorPresentation,
-    ColorPresentationParams
+    ColorPresentationParams,
+    DocumentLinkParams,
+    DocumentLink
 } from 'vscode-languageserver/node';
 
 import {
@@ -70,6 +72,7 @@ import {
 } from 'vscode-languageserver-textdocument';
 
 import { onDocumentColor, onColorPresentation } from './features/colorProvider';
+import { onDocumentLinks } from './features/documentLink';
 import { onPrepareCallHierarchy, onIncomingCalls, onOutgoingCalls } from './features/callHierarchy';
 import { onCompletion, onCompletionResolve } from './features/completion';
 import { onHover } from './features/hover';
@@ -446,6 +449,16 @@ connection.onColorPresentation(
         Logger.log(`Color Presentation requested for ${params.textDocument.uri}`);
         return onColorPresentation(params, document);
     }, [], 'ColorPresentation')
+);
+
+// This handler provides document links
+connection.onDocumentLinks(
+    safeHandler((params: DocumentLinkParams): DocumentLink[] => {
+        const document = documents.get(params.textDocument.uri);
+        if (!document) return [];
+        Logger.log(`Document Links requested for ${params.textDocument.uri}`);
+        return onDocumentLinks(params, document);
+    }, [], 'DocumentLinks')
 );
 
 // Make the text document manager listen on the connection

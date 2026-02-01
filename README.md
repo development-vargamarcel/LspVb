@@ -25,7 +25,8 @@ A lightweight Language Server Protocol (LSP) implementation for Visual Basic, de
 - **Find References**: Find all occurrences of a symbol. Supports searching across all open files.
 - **Rename**: Rename a symbol and all its occurrences. Supports renaming across all open files. Now supports **Prepare Rename** to validate the symbol before renaming.
 - **Workspace Symbols**: Search for symbols (Classes, Methods, Variables) across all open files in the workspace.
-- **Code Actions**: Quick fixes for common errors (missing `Then`, `As`, return types), removing unused variables, extracting constants, **Wrap in Try/Catch**, **Invert If** (swaps Then/Else blocks), **Encapsulate Field** (Generate Property), **Generate Constructor** (from Private fields), **Generate ToString** (based on fields/properties), **Generate Equals & GetHashCode**, **Implement Interface** (Generate stubs for missing interface members), and **Add Imports** (for common .NET types). Also includes **Sort Imports** (Organize Imports).
+- **Document Link**: Detects and makes http/https URLs clickable in the editor.
+- **Code Actions**: Quick fixes for common errors (missing `Then`, `As`, return types), removing unused variables, extracting constants, **Wrap in Try/Catch**, **Wrap in #Region**, **Invert If** (swaps Then/Else blocks), **Encapsulate Field** (Generate Property), **Generate Constructor** (from Private fields), **Generate ToString** (based on fields/properties), **Generate Equals & GetHashCode**, **Implement Interface** (Generate stubs for missing interface members), and **Add Imports** (for common .NET types). Also includes **Sort Imports** (Organize Imports).
 - **Signature Help**: Parameter hints for function and subroutine calls.
 - **Semantic Tokens**: Syntax highlighting for different symbol types (classes, variables, etc.).
 - **Document Highlight**: Highlights all occurrences of a symbol in the editor.
